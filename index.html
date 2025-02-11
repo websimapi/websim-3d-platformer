@@ -41,6 +41,18 @@
       width: 100%;
       box-sizing: border-box;
     }
+    #objectEditor {
+      margin-top: 10px;
+      border-top: 1px solid #fff;
+      padding-top: 10px;
+      display: none;
+    }
+    #objectEditor input {
+      width: 100%;
+      margin-bottom: 5px;
+      padding: 3px;
+      box-sizing: border-box;
+    }
     #hint {
       position: absolute;
       bottom: 10px;
@@ -77,6 +89,13 @@
     <button id="clearSelection">Clear Selection</button>
     <p style="font-size:12px;">Click on the scene to add the selected object.<br>
     (Platforms are added on ground level.)</p>
+    <div id="objectEditor">
+      <h4>Selected Object</h4>
+      <label>Position X: <input type="number" id="posX" step="0.1"></label>
+      <label>Position Y: <input type="number" id="posY" step="0.1"></label>
+      <label>Position Z: <input type="number" id="posZ" step="0.1"></label>
+      <button id="applyTransform">Apply Transform</button>
+    </div>
   </div>
   <div id="hint">
     Hint: The key is hidden in a tunnel - only the small orange player can fit inside!<br>
