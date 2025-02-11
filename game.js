@@ -378,6 +378,140 @@ class Game {
     return box1.intersectsBox(box2);
   }
 
+  updatePlayer(player, velocity, controls, jumpKey, speed, gravity) {
+    const moveX = (controls.right ? 1 : 0) - (controls.left ? 1 : 0);
+    const moveZ = (controls.down ? 1 : 0) - (controls.up ? 1 : 0);
+
+    // Apply movement in X and Z separately for better collision handling
+    const originalPosition = player.position.clone();
+    
+    // Move X
+    if (moveX !== 0) {
+      player.position.x += moveX * speed;
+      let collided = false;
+      
+      // Check collisions with platforms
+      for (const platform of this.platforms) {
+        if (this.checkCollision(player, platform)) {
+          collided = true;
+          break;
+        }
+      }
+      
+      // Check collision with other player
+      const otherPlayer = (player === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
+      if (this.checkCollision(player, otherPlayer)) {
+        collided = true;
+      }
+      
+      if (collided) {
+        player.position.x = originalPosition.x;
+      }
+    }
+    
+    // Move Z
+    if (moveZ !== 0) {
+      player.position.z += moveZ * speed;
+      let collided = false;
+      
+      // Check collisions with platforms
+      for (const platform of this.platforms) {
+        if (this.checkCollision(player, platform)) {
+          collided = true;
+          break;
+        }
+      }
+      
+      // Check collision with other player
+      const otherPlayer = (player === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
+      if (this.checkCollision(player, otherPlayer)) {
+        collided = true;
+      }
+      
+      if (collided) {
+        player.position.z = originalPosition.z;
+      }
+    }
+
+    // Apply gravity and handle vertical movement
+    velocity.y -= gravity;
+    const oldY = player.position.y;
+    player.position.y += velocity.y;
+
+    const halfHeight = player.geometry.parameters.height / 2;
+    let isGrounded = false;
+
+    // Ground collision
+    if (player.position.y <= halfHeight) {
+      player.position.y = halfHeight;
+      velocity.y = 0;
+      isGrounded = true;
+    }
+
+    // Platform collisions
+    for (const platform of this.platforms) {
+      if (this.checkCollision(player, platform)) {
+        const platformBox = new THREE.Box3().setFromObject(platform);
+        const playerBox = new THREE.Box3().setFromObject(player);
+        
+        // Check if player is above platform
+        if (oldY >= platformBox.max.y) {
+          player.position.y = platformBox.max.y + halfHeight;
+          velocity.y = 0;
+          isGrounded = true;
+        }
+        // Check if player is below platform
+        else if (oldY + player.geometry.parameters.height <= platformBox.min.y) {
+          player.position.y = platformBox.min.y - player.geometry.parameters.height;
+          velocity.y = 0;
+        }
+        // Side collision
+        else {
+          player.position.copy(originalPosition);
+          velocity.y = 0;
+        }
+      }
+    }
+
+    // Other player collision
+    const otherPlayer = (player === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
+    if (this.checkCollision(player, otherPlayer)) {
+      const otherBox = new THREE.Box3().setFromObject(otherPlayer);
+      
+      // Coming from above
+      if (oldY >= otherBox.max.y - 0.1) {
+        player.position.y = otherBox.max.y + halfHeight;
+        velocity.y = 0;
+        isGrounded = true;
+      }
+      // Coming from below
+      else if (oldY + player.geometry.parameters.height <= otherBox.min.y + 0.1) {
+        player.position.y = otherBox.min.y - player.geometry.parameters.height;
+        velocity.y = 0;
+      }
+      // Side collision
+      else {
+        player.position.copy(originalPosition);
+      }
+    }
+
+    // Handle jumping only when grounded
+    if (isGrounded && jumpKey) {
+      velocity.y = 0.2;
+    }
+
+    // Bounds checking
+    const bounds = 9;
+    player.position.x = Math.max(-bounds, Math.min(bounds, player.position.x));
+    player.position.z = Math.max(-bounds, Math.min(bounds, player.position.z));
+  }
+
+  onWindowResize() {
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
   tryPickupKey() {
     if (!this.isHoldingKey && this.activePlayer) {
       const distance = this.activePlayer.position.distanceTo(this.key.position);
@@ -406,74 +540,6 @@ class Game {
     const idealPosition = targetPosition.clone().add(idealOffset);
     this.camera.position.lerp(idealPosition, this.cameraLerpFactor);
     this.camera.lookAt(targetPosition);
-  }
-
-  updatePlayer(player, velocity, controls, jumpKey, speed, gravity) {
-    const moveX = (controls.right ? 1 : 0) - (controls.left ? 1 : 0);
-    const moveZ = (controls.down ? 1 : 0) - (controls.up ? 1 : 0);
-
-    velocity.x = moveX * speed;
-    velocity.z = moveZ * speed;
-
-    // Store old position for collision resolution
-    const oldPosition = player.position.clone();
-    const halfHeight = player.geometry.parameters.height / 2;
-    const oldBottom = oldPosition.y - halfHeight;
-
-    // Apply reduced gravity
-    velocity.y -= gravity;
-    
-    // Update position
-    player.position.x += velocity.x;
-    player.position.y += velocity.y;
-    player.position.z += velocity.z;
-
-    // Collision with the other player - modified for smoother standing
-    const otherPlayer = (player === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
-    if (this.checkCollision(player, otherPlayer)) {
-      const otherBox = new THREE.Box3().setFromObject(otherPlayer);
-      const otherTop = otherBox.max.y;
-      if (oldBottom >= otherTop - 0.1) { // Coming from above with small tolerance
-        player.position.y = otherTop + halfHeight;
-        velocity.y = 0;
-        if (jumpKey) velocity.y = 0.2;
-      } else {
-        player.position.copy(oldPosition);
-      }
-    }
-
-    // Ground collision
-    if (player.position.y <= halfHeight) {
-      player.position.y = halfHeight;
-      velocity.y = 0;
-      if (jumpKey) velocity.y = 0.2;
-    }
-
-    // Collision with platforms
-    for (const platform of this.platforms) {
-      if (this.checkCollision(player, platform)) {
-        const platformBox = new THREE.Box3().setFromObject(platform);
-        const platformTop = platformBox.max.y;
-        if (oldBottom >= platformTop) {
-          player.position.y = platformTop + halfHeight;
-          velocity.y = 0;
-          if (jumpKey) velocity.y = 0.2;
-        } else {
-          player.position.copy(oldPosition);
-        }
-      }
-    }
-
-    // Bounds checking
-    const bounds = 9;
-    player.position.x = Math.max(-bounds, Math.min(bounds, player.position.x));
-    player.position.z = Math.max(-bounds, Math.min(bounds, player.position.z));
-  }
-
-  onWindowResize() {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
   animate() {
