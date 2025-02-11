@@ -17,6 +17,7 @@ class Game {
     // Constants
     this.NORMAL_HEIGHT = 1.75;
     this.SHORT_HEIGHT = this.NORMAL_HEIGHT / 2;
+    this.TUNNEL_HEIGHT = 1.2; // Only small character can fit
     
     // Active player tracking
     this.activePlayer = null;
@@ -56,11 +57,21 @@ class Game {
     this.ground.receiveShadow = true;
     this.scene.add(this.ground);
 
-    // Platforms
+    // Platforms array
     this.platforms = [];
+    
+    // Main platforms
     this.addPlatform(2, 1, 2, 0x404040, -3, 0.5, -3);
     this.addPlatform(2, 1, 2, 0x404040, 3, 1, 3);
     this.addPlatform(2, 1, 2, 0x404040, -3, 1.5, 3);
+    
+    // Additional platforming elements
+    this.addPlatform(2, 0.3, 2, 0x505050, 5, 2, -3);
+    this.addPlatform(2, 0.3, 2, 0x505050, 7, 2.5, -3);
+    this.addPlatform(3, 0.3, 2, 0x505050, -5, 1.8, -4);
+    
+    // Create tunnel/cave structure
+    this.createTunnel();
   }
 
   addPlatform(width, height, depth, color, x, y, z) {
@@ -72,6 +83,47 @@ class Game {
     platform.receiveShadow = true;
     this.scene.add(platform);
     this.platforms.push(platform);
+  }
+
+  createTunnel() {
+    // Tunnel walls
+    const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x505050 });
+    
+    // Left wall
+    const leftWall = new THREE.BoxGeometry(0.5, this.TUNNEL_HEIGHT, 4);
+    const leftWallMesh = new THREE.Mesh(leftWall, wallMaterial);
+    leftWallMesh.position.set(-6, this.TUNNEL_HEIGHT/2, 0);
+    leftWallMesh.castShadow = true;
+    leftWallMesh.receiveShadow = true;
+    this.scene.add(leftWallMesh);
+    this.platforms.push(leftWallMesh);
+
+    // Right wall
+    const rightWall = new THREE.BoxGeometry(0.5, this.TUNNEL_HEIGHT, 4);
+    const rightWallMesh = new THREE.Mesh(rightWall, wallMaterial);
+    rightWallMesh.position.set(-4, this.TUNNEL_HEIGHT/2, 0);
+    rightWallMesh.castShadow = true;
+    rightWallMesh.receiveShadow = true;
+    this.scene.add(rightWallMesh);
+    this.platforms.push(rightWallMesh);
+
+    // Top of tunnel
+    const tunnelTop = new THREE.BoxGeometry(2.5, 0.5, 4);
+    const tunnelTopMesh = new THREE.Mesh(tunnelTop, wallMaterial);
+    tunnelTopMesh.position.set(-5, this.TUNNEL_HEIGHT, 0);
+    tunnelTopMesh.castShadow = true;
+    tunnelTopMesh.receiveShadow = true;
+    this.scene.add(tunnelTopMesh);
+    this.platforms.push(tunnelTopMesh);
+
+    // Back wall of tunnel
+    const backWall = new THREE.BoxGeometry(2, this.TUNNEL_HEIGHT, 0.5);
+    const backWallMesh = new THREE.Mesh(backWall, wallMaterial);
+    backWallMesh.position.set(-5, this.TUNNEL_HEIGHT/2, 2);
+    backWallMesh.castShadow = true;
+    backWallMesh.receiveShadow = true;
+    this.scene.add(backWallMesh);
+    this.platforms.push(backWallMesh);
   }
 
   setupEnvironment() {
@@ -145,7 +197,8 @@ class Game {
       keyGroup.add(tooth);
     });
 
-    keyGroup.position.set(0, 0.5, 0);
+    // Position key inside tunnel
+    keyGroup.position.set(-5, 0.5, 0);
     keyGroup.castShadow = true;
     this.key = keyGroup;
     this.scene.add(this.key);
