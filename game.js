@@ -382,125 +382,126 @@ class Game {
     const moveX = (controls.right ? 1 : 0) - (controls.left ? 1 : 0);
     const moveZ = (controls.down ? 1 : 0) - (controls.up ? 1 : 0);
 
-    // Apply movement in X and Z separately for better collision handling
+    // Store original position for collision resolution
     const originalPosition = player.position.clone();
-    
-    // Move X
+    let finalPosition = originalPosition.clone();
+
+    // Try movement in X direction
     if (moveX !== 0) {
-      player.position.x += moveX * speed;
-      let collided = false;
+      finalPosition.x += moveX * speed;
+      let hasCollision = false;
       
-      // Check collisions with platforms
+      // Check platform collisions
       for (const platform of this.platforms) {
+        player.position.copy(finalPosition);
         if (this.checkCollision(player, platform)) {
-          collided = true;
+          hasCollision = true;
           break;
         }
       }
       
-      // Check collision with other player
+      // Check other player collision
       const otherPlayer = (player === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
+      player.position.copy(finalPosition);
       if (this.checkCollision(player, otherPlayer)) {
-        collided = true;
+        hasCollision = true;
       }
       
-      if (collided) {
-        player.position.x = originalPosition.x;
+      if (hasCollision) {
+        finalPosition.x = originalPosition.x;
       }
     }
-    
-    // Move Z
+
+    // Try movement in Z direction
     if (moveZ !== 0) {
-      player.position.z += moveZ * speed;
-      let collided = false;
+      finalPosition.z += moveZ * speed;
+      let hasCollision = false;
       
-      // Check collisions with platforms
+      // Check platform collisions
       for (const platform of this.platforms) {
+        player.position.copy(finalPosition);
         if (this.checkCollision(player, platform)) {
-          collided = true;
+          hasCollision = true;
           break;
         }
       }
       
-      // Check collision with other player
+      // Check other player collision
       const otherPlayer = (player === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
+      player.position.copy(finalPosition);
       if (this.checkCollision(player, otherPlayer)) {
-        collided = true;
+        hasCollision = true;
       }
       
-      if (collided) {
-        player.position.z = originalPosition.z;
+      if (hasCollision) {
+        finalPosition.z = originalPosition.z;
       }
     }
 
-    // Apply gravity and handle vertical movement
+    // Apply gravity and vertical movement
     velocity.y -= gravity;
-    const oldY = player.position.y;
-    player.position.y += velocity.y;
+    const oldY = finalPosition.y;
+    finalPosition.y += velocity.y;
 
+    // Ground collision check
     const halfHeight = player.geometry.parameters.height / 2;
     let isGrounded = false;
 
-    // Ground collision
-    if (player.position.y <= halfHeight) {
-      player.position.y = halfHeight;
+    if (finalPosition.y <= halfHeight) {
+      finalPosition.y = halfHeight;
       velocity.y = 0;
       isGrounded = true;
     }
 
-    // Platform collisions
+    // Platform collision checks
     for (const platform of this.platforms) {
+      player.position.copy(finalPosition);
       if (this.checkCollision(player, platform)) {
         const platformBox = new THREE.Box3().setFromObject(platform);
         const playerBox = new THREE.Box3().setFromObject(player);
         
-        // Check if player is above platform
-        if (oldY >= platformBox.max.y) {
-          player.position.y = platformBox.max.y + halfHeight;
+        // Coming from above
+        if (oldY >= platformBox.max.y - 0.1) {
+          finalPosition.y = platformBox.max.y + halfHeight;
           velocity.y = 0;
           isGrounded = true;
         }
-        // Check if player is below platform
-        else if (oldY + player.geometry.parameters.height <= platformBox.min.y) {
-          player.position.y = platformBox.min.y - player.geometry.parameters.height;
-          velocity.y = 0;
-        }
-        // Side collision
-        else {
-          player.position.copy(originalPosition);
+        // Coming from below
+        else if (oldY + player.geometry.parameters.height <= platformBox.min.y + 0.1) {
+          finalPosition.y = platformBox.min.y - player.geometry.parameters.height;
           velocity.y = 0;
         }
       }
     }
 
-    // Other player collision
+    // Other player collision check
     const otherPlayer = (player === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
+    player.position.copy(finalPosition);
     if (this.checkCollision(player, otherPlayer)) {
       const otherBox = new THREE.Box3().setFromObject(otherPlayer);
       
       // Coming from above
       if (oldY >= otherBox.max.y - 0.1) {
-        player.position.y = otherBox.max.y + halfHeight;
+        finalPosition.y = otherBox.max.y + halfHeight;
         velocity.y = 0;
         isGrounded = true;
       }
       // Coming from below
       else if (oldY + player.geometry.parameters.height <= otherBox.min.y + 0.1) {
-        player.position.y = otherBox.min.y - player.geometry.parameters.height;
+        finalPosition.y = otherBox.min.y - player.geometry.parameters.height;
         velocity.y = 0;
-      }
-      // Side collision
-      else {
-        player.position.copy(originalPosition);
       }
     }
 
-    // Handle jumping only when grounded
+    // Apply final position
+    player.position.copy(finalPosition);
+
+    // Handle jumping
     if (isGrounded && jumpKey) {
       velocity.y = 0.2;
     }
 
-    // Bounds checking
+    // Apply bounds
     const bounds = 9;
     player.position.x = Math.max(-bounds, Math.min(bounds, player.position.x));
     player.position.z = Math.max(-bounds, Math.min(bounds, player.position.z));
