@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { initEditorControls, editorClickHandler } from './editor.js';
 
 class Game {
   constructor() {
@@ -33,6 +34,9 @@ class Game {
     this.door = null;
     this.isDoorOpen = false;
 
+    // Level Editor Mode flag
+    this.isEditorMode = false;
+
     // Setup sequence
     this.setupWorld();
     this.setupEnvironment();
@@ -43,6 +47,9 @@ class Game {
     this.setupCamera();
     this.setupControls();
 
+    // Initialize editor controls (but they only become active when editor mode is on)
+    initEditorControls(this);
+
     // Set initial active player
     this.setActivePlayer(this.greenPlayer);
 
@@ -51,6 +58,18 @@ class Game {
 
     // Event listeners
     window.addEventListener('resize', () => this.onWindowResize(), false);
+
+    // Listen for clicks for level editor
+    window.addEventListener('mousedown', (e) => {
+      if (this.isEditorMode) {
+        editorClickHandler(e, this);
+      }
+    });
+  }
+
+  toggleEditorMode() {
+    this.isEditorMode = !this.isEditorMode;
+    // When toggling editor, pause player controls if needed.
   }
 
   setupWorld() {
@@ -322,6 +341,8 @@ class Game {
   }
 
   onKeyDown(event) {
+    if(this.isEditorMode) return; // disable gameplay controls in editor mode
+
     switch (event.key.toLowerCase()) {
       case 'w': this.keys.w = true; break;
       case 'a': this.keys.a = true; break;
@@ -347,6 +368,7 @@ class Game {
   }
 
   onKeyUp(event) {
+    if(this.isEditorMode) return; // disable gameplay controls in editor mode
     switch (event.key.toLowerCase()) {
       case 'w': this.keys.w = false; break;
       case 'a': this.keys.a = false; break;
@@ -389,7 +411,6 @@ class Game {
       const separation = new THREE.Vector3();
       if (minOverlap === overlapX) {
         separation.x = overlapX;
-        // Determine direction
         separation.x *= (this.greenPlayer.position.x < this.orangePlayer.position.x ? -1 : 1);
       } else if (minOverlap === overlapY) {
         separation.y = overlapY;
@@ -402,7 +423,6 @@ class Game {
       this.greenPlayer.position.add(separation.clone().multiplyScalar(0.5));
       this.orangePlayer.position.sub(separation.clone().multiplyScalar(0.5));
       
-      // Adjust vertical velocities if separation happened vertically to avoid bouncing
       if (minOverlap === overlapY) {
         this.greenVelocity.y = 0;
         this.orangeVelocity.y = 0;
@@ -450,16 +470,14 @@ class Game {
     const oldPosition = player.position.clone();
     const oldY = player.position.y;
 
-    // Update horizontal movement separately
+    // Update horizontal movement
     player.position.x += velocity.x;
     player.position.z += velocity.z;
-    // Check horizontal collisions with platforms – allow if player is standing on top of a platform
     for (const platform of this.platforms) {
       if (this.checkCollision(player, platform)) {
         const platformBox = new THREE.Box3().setFromObject(platform);
         const platformTop = platformBox.max.y;
         const playerBottom = player.position.y - halfHeight;
-        // If player's bottom is nearly on top of the platform, allow horizontal movement
         if (Math.abs(playerBottom - platformTop) > 0.2) {
           player.position.x = oldPosition.x;
           player.position.z = oldPosition.z;
@@ -470,7 +488,7 @@ class Game {
       }
     }
 
-    // Apply gravity (vertical movement)
+    // Apply gravity
     velocity.y -= gravity;
     player.position.y += velocity.y;
 
@@ -480,7 +498,6 @@ class Game {
         const platformBox = new THREE.Box3().setFromObject(platform);
         const platformTop = platformBox.max.y;
         const currentBottom = player.position.y - halfHeight;
-        // If falling onto platform
         if (oldY - halfHeight >= platformTop - 0.1 && currentBottom < platformTop + 0.5) {
           player.position.y = platformTop + halfHeight;
           velocity.y = 0;
@@ -489,7 +506,6 @@ class Game {
             player.position.y += velocity.y;
           }
         } else {
-          // If collision from side or bottom, revert vertical movement
           player.position.y = oldY;
           velocity.y = 0;
         }
@@ -521,32 +537,27 @@ class Game {
   animate() {
     requestAnimationFrame(() => this.animate());
 
-    const isGreenActive = this.activePlayer === this.greenPlayer;
-
-    // Update green player
-    this.updatePlayer(
-      this.greenPlayer,
-      this.greenVelocity,
-      isGreenActive ? { up: this.keys.w, down: this.keys.s, left: this.keys.a, right: this.keys.d } : {},
-      isGreenActive && this.keys.space,
-      0.1,
-      0.01
-    );
-
-    // Update orange player
-    this.updatePlayer(
-      this.orangePlayer,
-      this.orangeVelocity,
-      !isGreenActive ? { up: this.keys.w, down: this.keys.s, left: this.keys.a, right: this.keys.d } : {},
-      !isGreenActive && this.keys.space,
-      0.1,
-      0.01
-    );
-
-    // Resolve collisions between players with full physical response so they push each other
-    this.resolvePlayerCollision();
-
-    this.updateKey();
+    if(!this.isEditorMode) {
+      const isGreenActive = this.activePlayer === this.greenPlayer;
+      this.updatePlayer(
+        this.greenPlayer,
+        this.greenVelocity,
+        isGreenActive ? { up: this.keys.w, down: this.keys.s, left: this.keys.a, right: this.keys.d } : {},
+        isGreenActive && this.keys.space,
+        0.1,
+        0.01
+      );
+      this.updatePlayer(
+        this.orangePlayer,
+        this.orangeVelocity,
+        !isGreenActive ? { up: this.keys.w, down: this.keys.s, left: this.keys.a, right: this.keys.d } : {},
+        !isGreenActive && this.keys.space,
+        0.1,
+        0.01
+      );
+      this.resolvePlayerCollision();
+      this.updateKey();
+    }
     this.updateCamera();
     this.renderer.render(this.scene, this.camera);
   }

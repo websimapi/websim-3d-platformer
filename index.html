@@ -1,11 +1,12 @@
 <html>
 <head>
-  <title>3D Platformer</title>
+  <title>3D Platformer with Level Editor</title>
   <style>
     body { 
       margin: 0; 
       overflow: hidden;
       background: #000;
+      font-family: Arial, sans-serif;
     }
     canvas { 
       width: 100%; 
@@ -21,13 +22,24 @@
       background: rgba(0,0,0,0.5);
       padding: 10px;
       border-radius: 5px;
-      font-family: Arial, sans-serif;
     }
-    #switchButton {
-      margin-top: 10px;
-      padding: 5px 10px;
+    #controls {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 10;
+      color: white;
+      background: rgba(0,0,0,0.5);
+      padding: 10px;
+      border-radius: 5px;
+      max-width: 250px;
+    }
+    #controls button, #controls select, #controls input {
+      margin-top: 5px;
+      padding: 5px;
       font-size: 14px;
-      cursor: pointer;
+      width: 100%;
+      box-sizing: border-box;
     }
     #hint {
       position: absolute;
@@ -37,7 +49,6 @@
       background: rgba(0,0,0,0.5);
       padding: 10px;
       border-radius: 5px;
-      font-family: Arial, sans-serif;
     }
   </style>
 </head>
@@ -49,9 +60,23 @@
     TAB or the button below to switch between players<br>
     E to pick up/hold key (release to drop) or open door with key<br>
     <br>
-    Green Player is tall, Orange Player is short
-    <br>
+    Green Player is tall, Orange Player is short<br>
     <button id="switchButton">Switch Player</button>
+    <br><br>
+    <button id="toggleEditor">Toggle Editor Mode</button>
+  </div>
+  <div id="controls" style="display:none;">
+    <h3>Level Editor</h3>
+    <select id="objectType">
+      <option value="platform">Platform</option>
+      <option value="spawn">Spawn Point</option>
+      <option value="key">Key</option>
+      <option value="door">Door</option>
+    </select>
+    <input type="color" id="colorPicker" value="#505050" title="Choose Object Color">
+    <button id="clearSelection">Clear Selection</button>
+    <p style="font-size:12px;">Click on the scene to add the selected object.<br>
+    (Platforms are added on ground level.)</p>
   </div>
   <div id="hint">
     Hint: The key is hidden in a tunnel - only the small orange player can fit inside!<br>
@@ -66,6 +91,7 @@
     }
   </script>
   <script type="module" src="game.js"></script>
+  <script type="module" src="editor.js"></script>
   <script>
     // Wire up the switch button to call switchPlayer on our game instance
     window.addEventListener('DOMContentLoaded', () => {
@@ -73,6 +99,22 @@
       switchButton.addEventListener('click', () => {
         if (window.game && window.game.switchPlayer) {
           window.game.switchPlayer();
+        }
+      });
+      // Toggle Level Editor Mode
+      const toggleEditor = document.getElementById('toggleEditor');
+      toggleEditor.addEventListener('click', () => {
+        if(window.game) {
+          window.game.toggleEditorMode();
+          // Show/hide controls panel accordingly
+          const controlsPanel = document.getElementById('controls');
+          if(window.game.isEditorMode) {
+            controlsPanel.style.display = "block";
+            toggleEditor.textContent = "Exit Editor Mode";
+          } else {
+            controlsPanel.style.display = "none";
+            toggleEditor.textContent = "Toggle Editor Mode";
+          }
         }
       });
     });
