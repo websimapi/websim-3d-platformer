@@ -18,21 +18,21 @@ class Game {
     this.NORMAL_HEIGHT = 1.75;
     this.SHORT_HEIGHT = this.NORMAL_HEIGHT / 2;
     this.TUNNEL_HEIGHT = 1.2; // Only small character can fit
-    
+
     // Active player tracking
     this.activePlayer = null;
     this.cameraOffset = new THREE.Vector3(0, 5, 10);
     this.cameraLerpFactor = 0.1;
-    
+
     // Add key tracking
     this.key = null;
     this.isHoldingKey = false;
     this.keyOffset = new THREE.Vector3(0.7, 0, 0); // Offset from player
-    
+
     // Add door tracking
     this.door = null;
     this.isDoorOpen = false;
-    
+
     // Setup sequence
     this.setupWorld();
     this.setupEnvironment();
@@ -42,10 +42,10 @@ class Game {
     this.setupLighting();
     this.setupCamera();
     this.setupControls();
-    
+
     // Set initial active player
     this.setActivePlayer(this.greenPlayer);
-    
+
     // Start animation loop
     this.animate();
 
@@ -64,20 +64,20 @@ class Game {
 
     // Platforms array
     this.platforms = [];
-    
+
     // Main platforms
     this.addPlatform(2, 1, 2, 0x404040, -3, 0.5, -3);
     this.addPlatform(2, 1, 2, 0x404040, 3, 1, 3);
     this.addPlatform(2, 1, 2, 0x404040, -3, 1.5, 3);
-    
+
     // Additional platforming elements
     this.addPlatform(2, 0.3, 2, 0x505050, 5, 2, -3);
     this.addPlatform(2, 0.3, 2, 0x505050, 7, 2.5, -3);
     this.addPlatform(3, 0.3, 2, 0x505050, -5, 1.8, -4);
-    
+
     // Create tunnel/cave structure
     this.createTunnel();
-    
+
     // Add platform leading to door
     this.addPlatform(3, 0.3, 2, 0x505050, 3, 4, -5);
     this.addPlatform(2, 0.3, 2, 0x505050, 0, 4, -5);
@@ -97,7 +97,7 @@ class Game {
   createTunnel() {
     // Tunnel walls
     const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x505050 });
-    
+
     // Left wall
     const leftWall = new THREE.BoxGeometry(0.5, this.TUNNEL_HEIGHT, 4);
     const leftWallMesh = new THREE.Mesh(leftWall, wallMaterial);
@@ -183,20 +183,20 @@ class Game {
   setupKey() {
     // Create a key mesh
     const keyGroup = new THREE.Group();
-    
+
     // Key head (circular part)
     const headGeometry = new THREE.TorusGeometry(0.2, 0.05, 16, 32);
     const keyMaterial = new THREE.MeshPhongMaterial({ color: 0xffd700 });
     const head = new THREE.Mesh(headGeometry, keyMaterial);
     head.rotation.x = Math.PI / 2;
     keyGroup.add(head);
-    
+
     // Key shaft
     const shaftGeometry = new THREE.BoxGeometry(0.4, 0.1, 0.1);
     const shaft = new THREE.Mesh(shaftGeometry, keyMaterial);
     shaft.position.x = -0.3;
     keyGroup.add(shaft);
-    
+
     // Key teeth
     const toothGeometry = new THREE.BoxGeometry(0.08, 0.15, 0.1);
     const positions = [-0.4, -0.5];
@@ -215,14 +215,14 @@ class Game {
 
   setupDoor() {
     const doorGroup = new THREE.Group();
-    
+
     // Door frame
     const frameGeometry = new THREE.BoxGeometry(2, 3, 0.3);
     const frameMaterial = new THREE.MeshPhongMaterial({ color: 0xdaa520 });
     const frame = new THREE.Mesh(frameGeometry, frameMaterial);
     frame.position.y = 1.5;
     doorGroup.add(frame);
-    
+
     // Door panel
     const doorGeometry = new THREE.BoxGeometry(1.6, 2.6, 0.2);
     const doorMaterial = new THREE.MeshPhongMaterial({ color: 0xffd700 });
@@ -230,7 +230,7 @@ class Game {
     doorPanel.position.y = 1.3;
     doorPanel.position.z = 0.1;
     doorGroup.add(doorPanel);
-    
+
     // Add handle
     const handleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
     const handleMaterial = new THREE.MeshPhongMaterial({ color: 0xb8860b });
@@ -238,18 +238,18 @@ class Game {
     handle.rotation.x = Math.PI / 2;
     handle.position.set(0.5, 1.3, 0.2);
     doorGroup.add(handle);
-    
+
     // Position the entire door
     doorGroup.position.set(1.5, 4, -6);
     doorGroup.castShadow = true;
     doorGroup.receiveShadow = true;
-    
+
     this.door = doorGroup;
     this.scene.add(doorGroup);
   }
 
   setupPlayers() {
-    // Green (tall) player
+    // Green (tall) player - a rectangular box collider
     const greenGeometry = new THREE.BoxGeometry(0.6, this.NORMAL_HEIGHT, 0.6);
     const greenMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
     this.greenPlayer = new THREE.Mesh(greenGeometry, greenMaterial);
@@ -257,7 +257,7 @@ class Game {
     this.greenPlayer.castShadow = true;
     this.scene.add(this.greenPlayer);
 
-    // Orange (short) player
+    // Orange (short) player - a rectangular box collider
     const orangeGeometry = new THREE.BoxGeometry(0.3, this.SHORT_HEIGHT, 0.3);
     const orangeMaterial = new THREE.MeshPhongMaterial({ color: 0xff8c00 });
     this.orangePlayer = new THREE.Mesh(orangeGeometry, orangeMaterial);
@@ -372,10 +372,42 @@ class Game {
     this.activePlayer = (this.activePlayer === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
   }
 
-  checkCollision(obj1, obj2) {
-    const box1 = new THREE.Box3().setFromObject(obj1);
-    const box2 = new THREE.Box3().setFromObject(obj2);
-    return box1.intersectsBox(box2);
+  resolvePlayerCollision() {
+    const box1 = new THREE.Box3().setFromObject(this.greenPlayer);
+    const box2 = new THREE.Box3().setFromObject(this.orangePlayer);
+
+    if (box1.intersectsBox(box2)) {
+      // Find overlap along each axis
+      const overlapX = Math.min(box1.max.x, box2.max.x) - Math.max(box1.min.x, box2.min.x);
+      const overlapY = Math.min(box1.max.y, box2.max.y) - Math.max(box1.min.y, box2.min.y);
+      const overlapZ = Math.min(box1.max.z, box2.max.z) - Math.max(box1.min.z, box2.min.z);
+      
+      // Determine the smallest overlap axis
+      const minOverlap = Math.min(overlapX, overlapY, overlapZ);
+      
+      // Create a separation vector
+      const separation = new THREE.Vector3();
+      if (minOverlap === overlapX) {
+        separation.x = overlapX;
+        // Determine direction
+        separation.x *= (this.greenPlayer.position.x < this.orangePlayer.position.x ? -1 : 1);
+      } else if (minOverlap === overlapY) {
+        separation.y = overlapY;
+        separation.y *= (this.greenPlayer.position.y < this.orangePlayer.position.y ? -1 : 1);
+      } else if (minOverlap === overlapZ) {
+        separation.z = overlapZ;
+        separation.z *= (this.greenPlayer.position.z < this.orangePlayer.position.z ? -1 : 1);
+      }
+      // Apply half of the separation to each player for even pushback
+      this.greenPlayer.position.add(separation.clone().multiplyScalar(0.5));
+      this.orangePlayer.position.sub(separation.clone().multiplyScalar(0.5));
+      
+      // Adjust vertical velocities if separation happened vertically to avoid bouncing
+      if (minOverlap === overlapY) {
+        this.greenVelocity.y = 0;
+        this.orangeVelocity.y = 0;
+      }
+    }
   }
 
   tryPickupKey() {
@@ -480,40 +512,17 @@ class Game {
     player.position.z = Math.max(-bounds, Math.min(bounds, player.position.z));
   }
 
-  resolvePlayerCollision() {
-    const threshold = 0.3;
-    const greenHalf = this.greenPlayer.geometry.parameters.height / 2;
-    const orangeHalf = this.orangePlayer.geometry.parameters.height / 2;
-    const greenTop = this.greenPlayer.position.y + greenHalf;
-    const greenBottom = this.greenPlayer.position.y - greenHalf;
-    const orangeTop = this.orangePlayer.position.y + orangeHalf;
-    const orangeBottom = this.orangePlayer.position.y - orangeHalf;
-
-    if (this.checkCollision(this.greenPlayer, this.orangePlayer)) {
-      // If green is slightly below orange, adjust green to stand on orange
-      if ((orangeTop - greenBottom) > 0 && (orangeTop - greenBottom) < threshold) {
-        this.greenPlayer.position.y = orangeTop + greenHalf;
-        this.greenVelocity.y = 0;
-      }
-      // If orange is slightly below green, adjust orange to stand on green
-      if ((greenTop - orangeBottom) > 0 && (greenTop - orangeBottom) < threshold) {
-        this.orangePlayer.position.y = greenTop + orangeHalf;
-        this.orangeVelocity.y = 0;
-      }
-    }
-  }
-
-  onWindowResize() {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+  checkCollision(obj1, obj2) {
+    const box1 = new THREE.Box3().setFromObject(obj1);
+    const box2 = new THREE.Box3().setFromObject(obj2);
+    return box1.intersectsBox(box2);
   }
 
   animate() {
     requestAnimationFrame(() => this.animate());
 
     const isGreenActive = this.activePlayer === this.greenPlayer;
-    
+
     // Update green player
     this.updatePlayer(
       this.greenPlayer,
@@ -534,13 +543,20 @@ class Game {
       0.01
     );
 
-    // Resolve collisions between players for fluid stacking
+    // Resolve collisions between players with full physical response so they push each other
     this.resolvePlayerCollision();
-    
+
     this.updateKey();
     this.updateCamera();
     this.renderer.render(this.scene, this.camera);
   }
+
+  onWindowResize() {
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
 }
 
 window.addEventListener('DOMContentLoaded', () => {
