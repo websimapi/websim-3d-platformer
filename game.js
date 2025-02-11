@@ -5,13 +5,13 @@ class Game {
     // Initialize renderer first
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setClearColor(0x87CEEB);
+    this.renderer.setClearColor(0x87ceeb);
     this.renderer.shadowMap.enabled = true;
     document.body.appendChild(this.renderer.domElement);
 
     // Scene, camera, and fog
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0x87CEEB, 10, 30);
+    this.scene.fog = new THREE.Fog(0x87ceeb, 10, 30);
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
     // Constants
@@ -101,7 +101,7 @@ class Game {
     // Left wall
     const leftWall = new THREE.BoxGeometry(0.5, this.TUNNEL_HEIGHT, 4);
     const leftWallMesh = new THREE.Mesh(leftWall, wallMaterial);
-    leftWallMesh.position.set(-6, this.TUNNEL_HEIGHT/2, 0);
+    leftWallMesh.position.set(-6, this.TUNNEL_HEIGHT / 2, 0);
     leftWallMesh.castShadow = true;
     leftWallMesh.receiveShadow = true;
     this.scene.add(leftWallMesh);
@@ -110,7 +110,7 @@ class Game {
     // Right wall
     const rightWall = new THREE.BoxGeometry(0.5, this.TUNNEL_HEIGHT, 4);
     const rightWallMesh = new THREE.Mesh(rightWall, wallMaterial);
-    rightWallMesh.position.set(-4, this.TUNNEL_HEIGHT/2, 0);
+    rightWallMesh.position.set(-4, this.TUNNEL_HEIGHT / 2, 0);
     rightWallMesh.castShadow = true;
     rightWallMesh.receiveShadow = true;
     this.scene.add(rightWallMesh);
@@ -128,7 +128,7 @@ class Game {
     // Back wall of tunnel
     const backWall = new THREE.BoxGeometry(2, this.TUNNEL_HEIGHT, 0.5);
     const backWallMesh = new THREE.Mesh(backWall, wallMaterial);
-    backWallMesh.position.set(-5, this.TUNNEL_HEIGHT/2, 2);
+    backWallMesh.position.set(-5, this.TUNNEL_HEIGHT / 2, 2);
     backWallMesh.castShadow = true;
     backWallMesh.receiveShadow = true;
     this.scene.add(backWallMesh);
@@ -186,7 +186,7 @@ class Game {
     
     // Key head (circular part)
     const headGeometry = new THREE.TorusGeometry(0.2, 0.05, 16, 32);
-    const keyMaterial = new THREE.MeshPhongMaterial({ color: 0xFFD700 });
+    const keyMaterial = new THREE.MeshPhongMaterial({ color: 0xffd700 });
     const head = new THREE.Mesh(headGeometry, keyMaterial);
     head.rotation.x = Math.PI / 2;
     keyGroup.add(head);
@@ -218,14 +218,14 @@ class Game {
     
     // Door frame
     const frameGeometry = new THREE.BoxGeometry(2, 3, 0.3);
-    const frameMaterial = new THREE.MeshPhongMaterial({ color: 0xDAA520 });
+    const frameMaterial = new THREE.MeshPhongMaterial({ color: 0xdaa520 });
     const frame = new THREE.Mesh(frameGeometry, frameMaterial);
     frame.position.y = 1.5;
     doorGroup.add(frame);
     
     // Door panel
     const doorGeometry = new THREE.BoxGeometry(1.6, 2.6, 0.2);
-    const doorMaterial = new THREE.MeshPhongMaterial({ color: 0xFFD700 });
+    const doorMaterial = new THREE.MeshPhongMaterial({ color: 0xffd700 });
     const doorPanel = new THREE.Mesh(doorGeometry, doorMaterial);
     doorPanel.position.y = 1.3;
     doorPanel.position.z = 0.1;
@@ -233,7 +233,7 @@ class Game {
     
     // Add handle
     const handleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
-    const handleMaterial = new THREE.MeshPhongMaterial({ color: 0xB8860B });
+    const handleMaterial = new THREE.MeshPhongMaterial({ color: 0xb8860b });
     const handle = new THREE.Mesh(handleGeometry, handleMaterial);
     handle.rotation.x = Math.PI / 2;
     handle.position.set(0.5, 1.3, 0.2);
@@ -322,7 +322,7 @@ class Game {
   }
 
   onKeyDown(event) {
-    switch(event.key.toLowerCase()) {
+    switch (event.key.toLowerCase()) {
       case 'w': this.keys.w = true; break;
       case 'a': this.keys.a = true; break;
       case 's': this.keys.s = true; break;
@@ -347,7 +347,7 @@ class Game {
   }
 
   onKeyUp(event) {
-    switch(event.key.toLowerCase()) {
+    switch (event.key.toLowerCase()) {
       case 'w': this.keys.w = false; break;
       case 'a': this.keys.a = false; break;
       case 's': this.keys.s = false; break;
@@ -411,60 +411,65 @@ class Game {
   updatePlayer(player, velocity, controls, jumpKey, speed, gravity) {
     const moveX = (controls.right ? 1 : 0) - (controls.left ? 1 : 0);
     const moveZ = (controls.down ? 1 : 0) - (controls.up ? 1 : 0);
-
     velocity.x = moveX * speed;
     velocity.z = moveZ * speed;
 
-    // Store old position for collision resolution
-    const oldPosition = player.position.clone();
     const halfHeight = player.geometry.parameters.height / 2;
-    const oldBottom = oldPosition.y - halfHeight;
+    const oldPosition = player.position.clone();
+    const oldY = player.position.y;
 
-    // Apply reduced gravity
-    velocity.y -= gravity;
-    
-    // Update position
+    // Update horizontal movement separately
     player.position.x += velocity.x;
-    player.position.y += velocity.y;
     player.position.z += velocity.z;
-
-    // Collision with the other player - modified for smoother standing
-    const otherPlayer = (player === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
-    if (this.checkCollision(player, otherPlayer)) {
-      const otherBox = new THREE.Box3().setFromObject(otherPlayer);
-      const otherTop = otherBox.max.y;
-      if (oldBottom >= otherTop - 0.1) { // Coming from above with small tolerance
-        player.position.y = otherTop + halfHeight;
-        velocity.y = 0;
-        if (jumpKey) velocity.y = 0.2;
-      } else {
-        player.position.copy(oldPosition);
+    // Check horizontal collisions with platforms
+    for (const platform of this.platforms) {
+      if (this.checkCollision(player, platform)) {
+        // Revert to old horizontal position if colliding
+        player.position.x = oldPosition.x;
+        player.position.z = oldPosition.z;
+        velocity.x = 0;
+        velocity.z = 0;
+        break;
       }
     }
 
-    // Ground collision
-    if (player.position.y <= halfHeight) {
-      player.position.y = halfHeight;
-      velocity.y = 0;
-      if (jumpKey) velocity.y = 0.2;
-    }
+    // Apply gravity (vertical movement)
+    velocity.y -= gravity;
+    player.position.y += velocity.y;
 
-    // Collision with platforms
+    // Check vertical collisions with platforms
     for (const platform of this.platforms) {
       if (this.checkCollision(player, platform)) {
         const platformBox = new THREE.Box3().setFromObject(platform);
         const platformTop = platformBox.max.y;
-        if (oldBottom >= platformTop) {
+        const currentBottom = player.position.y - halfHeight;
+        // If falling onto platform
+        if (oldY - halfHeight >= platformTop - 0.1 && currentBottom < platformTop + 0.5) {
           player.position.y = platformTop + halfHeight;
           velocity.y = 0;
-          if (jumpKey) velocity.y = 0.2;
+          if (jumpKey) {
+            velocity.y = 0.2;
+            player.position.y += velocity.y;
+          }
         } else {
-          player.position.copy(oldPosition);
+          // If collision from side or bottom, revert vertical movement
+          player.position.y = oldY;
+          velocity.y = 0;
         }
       }
     }
 
-    // Bounds checking
+    // Ensure player does not go below ground
+    if (player.position.y < halfHeight) {
+      player.position.y = halfHeight;
+      velocity.y = 0;
+      if (jumpKey) {
+        velocity.y = 0.2;
+        player.position.y += velocity.y;
+      }
+    }
+
+    // Bounds checking horizontally
     const bounds = 9;
     player.position.x = Math.max(-bounds, Math.min(bounds, player.position.x));
     player.position.z = Math.max(-bounds, Math.min(bounds, player.position.z));
