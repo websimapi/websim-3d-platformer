@@ -1,25 +1,32 @@
-import * as THREE from 'https://cdn.skypack.dev/three@0.153.0';
+import * as THREE from 'three';
 
 class Game {
   constructor() {
+    // Initialize renderer first
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setClearColor(0x87CEEB); // Sky blue background
+    document.body.appendChild(this.renderer.domElement);
+
+    // Scene and camera
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    this.renderer = new THREE.WebGLRenderer();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(this.renderer.domElement);
 
     // Constants
     this.NORMAL_HEIGHT = 1.75; // 1.75 meters
     this.SHORT_HEIGHT = this.NORMAL_HEIGHT / 2;
     
+    // Setup sequence
     this.setupWorld();
     this.setupPlayers();
     this.setupLighting();
     this.setupCamera();
     this.setupControls();
     
+    // Start animation loop
     this.animate();
     
+    // Event listeners
     window.addEventListener('resize', () => this.onWindowResize(), false);
   }
 
@@ -116,12 +123,19 @@ class Game {
   }
 
   setupLighting() {
-    const ambientLight = new THREE.AmbientLight(0x404040);
+    // Brighter ambient light
+    const ambientLight = new THREE.AmbientLight(0x606060);
     this.scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    // Brighter directional light
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.position.set(10, 10, 10);
     this.scene.add(directionalLight);
+
+    // Add another directional light from a different angle
+    const secondaryLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    secondaryLight.position.set(-10, 5, -10);
+    this.scene.add(secondaryLight);
   }
 
   setupCamera() {
@@ -231,9 +245,12 @@ class Game {
       0.01
     );
 
+    // Ensure we're rendering
     this.renderer.render(this.scene, this.camera);
   }
 }
 
-// Start the game
-new Game();
+// Create game instance
+window.addEventListener('DOMContentLoaded', () => {
+  new Game();
+});
