@@ -6,10 +6,12 @@ class Game {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setClearColor(0x87CEEB);
+    this.renderer.shadowMap.enabled = true;
     document.body.appendChild(this.renderer.domElement);
 
-    // Scene and camera
+    // Scene, camera, and fog
     this.scene = new THREE.Scene();
+    this.scene.fog = new THREE.Fog(0x87CEEB, 10, 30);
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
     // Constants
@@ -23,6 +25,7 @@ class Game {
     
     // Setup sequence
     this.setupWorld();
+    this.setupEnvironment();
     this.setupPlayers();
     this.setupLighting();
     this.setupCamera();
@@ -33,7 +36,7 @@ class Game {
     
     // Start animation loop
     this.animate();
-    
+
     // Event listeners
     window.addEventListener('resize', () => this.onWindowResize(), false);
   }
@@ -44,6 +47,7 @@ class Game {
     const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
     this.ground = new THREE.Mesh(groundGeometry, groundMaterial);
     this.ground.position.y = -0.5;
+    this.ground.receiveShadow = true;
     this.scene.add(this.ground);
 
     // Platforms
@@ -58,8 +62,55 @@ class Game {
     const material = new THREE.MeshPhongMaterial({ color });
     const platform = new THREE.Mesh(geometry, material);
     platform.position.set(x, y, z);
+    platform.castShadow = true;
+    platform.receiveShadow = true;
     this.scene.add(platform);
     this.platforms.push(platform);
+  }
+
+  setupEnvironment() {
+    // Add some trees for detail
+    const treePositions = [
+      { x: -7, z: -7 },
+      { x: 7, z: -6 },
+      { x: -6, z: 7 },
+      { x: 6, z: 6 },
+      { x: 0, z: 8 }
+    ];
+    treePositions.forEach(pos => {
+      this.createTree(pos.x, pos.z);
+    });
+
+    // Add a sun for extra atmosphere
+    const sunGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+    const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+    sun.position.set(-8, 8, -8);
+    this.scene.add(sun);
+  }
+
+  createTree(x, z) {
+    const tree = new THREE.Group();
+
+    // Trunk
+    const trunkGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1, 8);
+    const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+    trunk.position.set(0, 0.5, 0);
+    trunk.castShadow = true;
+    trunk.receiveShadow = true;
+    tree.add(trunk);
+
+    // Foliage
+    const leavesGeometry = new THREE.ConeGeometry(0.5, 1, 8);
+    const leavesMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 });
+    const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+    leaves.position.set(0, 1.5, 0);
+    leaves.castShadow = true;
+    tree.add(leaves);
+
+    tree.position.set(x, 0, z);
+    this.scene.add(tree);
   }
 
   setupPlayers() {
@@ -68,6 +119,7 @@ class Game {
     const greenMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
     this.greenPlayer = new THREE.Mesh(greenGeometry, greenMaterial);
     this.greenPlayer.position.set(-2, this.NORMAL_HEIGHT / 2, 0);
+    this.greenPlayer.castShadow = true;
     this.scene.add(this.greenPlayer);
 
     // Orange (short) player
@@ -75,6 +127,7 @@ class Game {
     const orangeMaterial = new THREE.MeshPhongMaterial({ color: 0xff8c00 });
     this.orangePlayer = new THREE.Mesh(orangeGeometry, orangeMaterial);
     this.orangePlayer.position.set(2, this.SHORT_HEIGHT / 2, 0);
+    this.orangePlayer.castShadow = true;
     this.scene.add(this.orangePlayer);
 
     // Physics properties
@@ -87,16 +140,19 @@ class Game {
   }
 
   setupLighting() {
-    // Brighter ambient light
+    // Ambient light for overall brightness
     const ambientLight = new THREE.AmbientLight(0x606060);
     this.scene.add(ambientLight);
 
-    // Brighter directional light
+    // Main directional light with shadows
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.position.set(10, 10, 10);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 1024;
+    directionalLight.shadow.mapSize.height = 1024;
     this.scene.add(directionalLight);
 
-    // Add another directional light from a different angle
+    // Secondary directional light from another angle
     const secondaryLight = new THREE.DirectionalLight(0xffffff, 0.5);
     secondaryLight.position.set(-10, 5, -10);
     this.scene.add(secondaryLight);
@@ -158,25 +214,18 @@ class Game {
     this.activePlayer = (this.activePlayer === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
   }
 
-  checkCollision(player, other) {
-    const playerBox = new THREE.Box3().setFromObject(player);
-    const otherBox = new THREE.Box3().setFromObject(other);
-    return playerBox.intersectsBox(otherBox);
+  checkCollision(obj1, obj2) {
+    const box1 = new THREE.Box3().setFromObject(obj1);
+    const box2 = new THREE.Box3().setFromObject(obj2);
+    return box1.intersectsBox(box2);
   }
 
   updateCamera() {
     if (!this.activePlayer) return;
-
     const targetPosition = this.activePlayer.position.clone();
     const idealOffset = this.cameraOffset.clone();
-    
-    // Calculate ideal camera position
     const idealPosition = targetPosition.clone().add(idealOffset);
-    
-    // Smoothly interpolate camera position
     this.camera.position.lerp(idealPosition, this.cameraLerpFactor);
-    
-    // Look at player
     this.camera.lookAt(targetPosition);
   }
 
@@ -189,6 +238,8 @@ class Game {
 
     // Store old position for collision resolution
     const oldPosition = player.position.clone();
+    const halfHeight = player.geometry.parameters.height / 2;
+    const oldBottom = oldPosition.y - halfHeight;
 
     // Apply gravity
     velocity.y -= gravity;
@@ -198,34 +249,34 @@ class Game {
     player.position.y += velocity.y;
     player.position.z += velocity.z;
 
-    // Check collisions with other player
+    // Collision with the other player
     const otherPlayer = (player === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
     if (this.checkCollision(player, otherPlayer)) {
-      // Handle vertical collision (standing on top)
-      if (oldPosition.y > otherPlayer.position.y + otherPlayer.geometry.parameters.height/2) {
-        player.position.y = otherPlayer.position.y + otherPlayer.geometry.parameters.height;
+      const otherBox = new THREE.Box3().setFromObject(otherPlayer);
+      const otherTop = otherBox.max.y;
+      if (oldBottom >= otherTop) { // Coming from above
+        player.position.y = otherTop + halfHeight;
         velocity.y = 0;
         if (jumpKey) velocity.y = 0.2;
       } else {
-        // Horizontal collision - revert to old position
         player.position.copy(oldPosition);
       }
     }
 
     // Ground collision
-    const playerHeight = player.geometry.parameters.height;
-    if (player.position.y <= playerHeight/2) {
-      player.position.y = playerHeight/2;
+    if (player.position.y <= halfHeight) {
+      player.position.y = halfHeight;
       velocity.y = 0;
       if (jumpKey) velocity.y = 0.2;
     }
 
-    // Platform collisions
+    // Collision with platforms
     for (const platform of this.platforms) {
       if (this.checkCollision(player, platform)) {
-        const platformTop = platform.position.y + platform.geometry.parameters.height/2;
-        if (oldPosition.y > platformTop) {
-          player.position.y = platformTop + playerHeight/2;
+        const platformBox = new THREE.Box3().setFromObject(platform);
+        const platformTop = platformBox.max.y;
+        if (oldBottom >= platformTop) {
+          player.position.y = platformTop + halfHeight;
           velocity.y = 0;
           if (jumpKey) velocity.y = 0.2;
         } else {
@@ -277,5 +328,5 @@ class Game {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  new Game();
+  window.game = new Game();
 });
