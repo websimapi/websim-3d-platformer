@@ -8,6 +8,9 @@ class Game {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setClearColor(0x87ceeb);
     this.renderer.shadowMap.enabled = true;
+    // Ensure renderer's canvas has a lower z-index so UI elements are clickable.
+    this.renderer.domElement.style.position = 'relative';
+    this.renderer.domElement.style.zIndex = '0';
     document.body.appendChild(this.renderer.domElement);
 
     // Scene, camera, and fog
@@ -36,8 +39,8 @@ class Game {
 
     // Level Editor Mode flag
     this.isEditorMode = false;
-    // Editor sub mode : 'build' or 'select'
-    this.editorSubMode = 'build';
+    // Default Editor sub mode is now set to 'select'
+    this.editorSubMode = 'select';
 
     // Setup sequence
     this.setupWorld();
@@ -63,6 +66,9 @@ class Game {
 
     // Listen for clicks for level editor
     window.addEventListener('mousedown', (e) => {
+      // Avoid processing clicks if the target is part of the UI
+      const targetTag = e.target.tagName.toLowerCase();
+      if (['input', 'button', 'select', 'label'].includes(targetTag)) return;
       if (this.isEditorMode) {
         editorClickHandler(e, this);
       }
