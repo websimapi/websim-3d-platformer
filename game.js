@@ -1,4 +1,4 @@
-import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
+import * as THREE from 'https://cdn.skypack.dev/three@0.153.0';
 
 class Game {
   constructor() {
@@ -46,17 +46,67 @@ class Game {
   }
 
   setupPlayers() {
-    // Green (tall) player
-    const greenGeometry = new THREE.CapsuleGeometry(0.3, this.NORMAL_HEIGHT - 0.6, 4, 8);
+    // Green (tall) player - using cylinder + spheres for capsule-like shape
+    const greenHeight = this.NORMAL_HEIGHT - 0.6;
+    const greenRadius = 0.3;
+    
+    const greenGroup = new THREE.Group();
+    
+    // Cylinder body
+    const greenBodyGeometry = new THREE.CylinderGeometry(greenRadius, greenRadius, greenHeight, 16);
     const greenMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
-    this.greenPlayer = new THREE.Mesh(greenGeometry, greenMaterial);
+    const greenBody = new THREE.Mesh(greenBodyGeometry, greenMaterial);
+    greenGroup.add(greenBody);
+    
+    // Top sphere
+    const greenTopSphere = new THREE.Mesh(
+      new THREE.SphereGeometry(greenRadius, 16, 16),
+      greenMaterial
+    );
+    greenTopSphere.position.y = greenHeight/2;
+    greenGroup.add(greenTopSphere);
+    
+    // Bottom sphere
+    const greenBottomSphere = new THREE.Mesh(
+      new THREE.SphereGeometry(greenRadius, 16, 16),
+      greenMaterial
+    );
+    greenBottomSphere.position.y = -greenHeight/2;
+    greenGroup.add(greenBottomSphere);
+    
+    this.greenPlayer = greenGroup;
     this.greenPlayer.position.set(-2, this.NORMAL_HEIGHT / 2, 0);
     this.scene.add(this.greenPlayer);
 
     // Orange (short) player
-    const orangeGeometry = new THREE.CapsuleGeometry(0.15, this.SHORT_HEIGHT - 0.3, 4, 8);
+    const orangeHeight = this.SHORT_HEIGHT - 0.3;
+    const orangeRadius = 0.15;
+    
+    const orangeGroup = new THREE.Group();
+    
+    // Cylinder body
+    const orangeBodyGeometry = new THREE.CylinderGeometry(orangeRadius, orangeRadius, orangeHeight, 16);
     const orangeMaterial = new THREE.MeshPhongMaterial({ color: 0xff8c00 });
-    this.orangePlayer = new THREE.Mesh(orangeGeometry, orangeMaterial);
+    const orangeBody = new THREE.Mesh(orangeBodyGeometry, orangeMaterial);
+    orangeGroup.add(orangeBody);
+    
+    // Top sphere
+    const orangeTopSphere = new THREE.Mesh(
+      new THREE.SphereGeometry(orangeRadius, 16, 16),
+      orangeMaterial
+    );
+    orangeTopSphere.position.y = orangeHeight/2;
+    orangeGroup.add(orangeTopSphere);
+    
+    // Bottom sphere
+    const orangeBottomSphere = new THREE.Mesh(
+      new THREE.SphereGeometry(orangeRadius, 16, 16),
+      orangeMaterial
+    );
+    orangeBottomSphere.position.y = -orangeHeight/2;
+    orangeGroup.add(orangeBottomSphere);
+    
+    this.orangePlayer = orangeGroup;
     this.orangePlayer.position.set(2, this.SHORT_HEIGHT / 2, 0);
     this.scene.add(this.orangePlayer);
 
@@ -130,8 +180,11 @@ class Game {
     // Gravity and jumping
     velocity.y -= gravity;
     
-    if (player.position.y <= player.geometry.parameters.radius + player.geometry.parameters.height / 2) {
-      player.position.y = player.geometry.parameters.radius + player.geometry.parameters.height / 2;
+    // Get the height based on which player it is
+    const playerHeight = (player === this.greenPlayer) ? this.NORMAL_HEIGHT : this.SHORT_HEIGHT;
+    
+    if (player.position.y <= playerHeight / 2) {
+      player.position.y = playerHeight / 2;
       velocity.y = 0;
       if (jumpKey) {
         velocity.y = 0.2;
