@@ -1,38 +1,32 @@
 import * as THREE from 'three';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 
 // Global variables for editor
 let selectedObjectType = 'platform';
 let selectedColor = 0x505050;
 let selectedObject = null;
+// Create a variable to hold TransformControls instance
+let transformControl = null;
 
-// Export clearSelectedObject for use from index.html when switching modes
 export function clearSelectedObjectExternal() {
   clearSelectedObject();
 }
 
-// Expose for index access if needed
 window.clearSelectedObject = clearSelectedObjectExternal;
 
 export function initEditorControls(gameInstance) {
   const objectTypeSelect = document.getElementById('objectType');
   const colorPicker = document.getElementById('colorPicker');
   const clearSelection = document.getElementById('clearSelection');
-  const objectEditorPanel = document.getElementById('objectEditor');
-  const posXInput = document.getElementById('posX');
-  const posYInput = document.getElementById('posY');
-  const posZInput = document.getElementById('posZ');
-  const applyButton = document.getElementById('applyTransform');
-  const moveIncrementInput = document.getElementById('moveIncrement');
-  const axisButtons = document.querySelectorAll('#axisTool button');
-  
+
   objectTypeSelect.addEventListener('change', (e) => {
     selectedObjectType = e.target.value;
   });
-  
+
   colorPicker.addEventListener('input', (e) => {
     selectedColor = parseInt(e.target.value.replace('#', '0x'));
   });
-  
+
   clearSelection.addEventListener('click', () => {
     // Reset selectors to defaults
     objectTypeSelect.value = 'platform';
@@ -41,33 +35,16 @@ export function initEditorControls(gameInstance) {
     selectedColor = 0x505050;
     clearSelectedObject();
   });
-  
-  applyButton.addEventListener('click', () => {
-    if (selectedObject) {
-      const x = parseFloat(posXInput.value);
-      const y = parseFloat(posYInput.value);
-      const z = parseFloat(posZInput.value);
-      selectedObject.position.set(x, y, z);
-    }
+
+  // Initialize TransformControls for object manipulation and add to scene,
+  // but keep detached until an object is selected.
+  transformControl = new TransformControls(gameInstance.camera, gameInstance.renderer.domElement);
+  transformControl.visible = false; // hide by default
+  transformControl.addEventListener('dragging-changed', function (event) {
+    // Disable orbit controls if you have them in future or gameplay controls
+    // For now, no conflict handling as editor mode disables gameplay.
   });
-  
-  axisButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      if (!selectedObject) return;
-      const axis = button.getAttribute('data-axis');
-      const dir = parseFloat(button.getAttribute('data-dir'));
-      const increment = parseFloat(moveIncrementInput.value) || 0.1;
-      if(axis === 'x') {
-        selectedObject.position.x += dir * increment;
-      } else if(axis === 'y') {
-        selectedObject.position.y += dir * increment;
-      } else if(axis === 'z') {
-        selectedObject.position.z += dir * increment;
-      }
-      // Update the UI after movement
-      updateObjectEditorUI();
-    });
-  });
+  gameInstance.scene.add(transformControl);
 }
 
 export function editorClickHandler(event, gameInstance) {
@@ -82,22 +59,24 @@ export function editorClickHandler(event, gameInstance) {
   raycaster.setFromCamera(mouse, gameInstance.camera);
 
   if(editorSubMode === 'select') {
-    // Try to select an existing editable object
+    // Try to select any clickable object in the scene.
     const intersects = raycaster.intersectObjects(gameInstance.scene.children, true);
     for (let intersect of intersects) {
-      if (intersect.object.userData.editable) {
-        setSelectedObject(intersect.object);
+      // Allow selection of any object that has a material (i.e. visible objects) 
+      // and is marked editable or not (all objects are selectable now)
+      if (intersect.object.material) {
+        setSelectedObject(intersect.object, gameInstance);
         return;
       }
     }
     // If nothing selected, clear selection
     clearSelectedObject();
   } else {
-    // Build mode: create new object if click does not hit an editable object
+    // Build mode: create new object if click does not hit an existing selectable object
     const intersects = raycaster.intersectObjects(gameInstance.scene.children, true);
     for (let intersect of intersects) {
-      if (intersect.object.userData.editable) {
-        // In build mode we do not select objects.
+      if (intersect.object.material) {
+        // If clicked on an existing object, do not build.
         return;
       }
     }
@@ -108,23 +87,22 @@ export function editorClickHandler(event, gameInstance) {
     if(!intersectPoint) return;
     
     switch(selectedObjectType) {
-      case "platform":
-        {
+      case "platform": {
           const width = 2, height = 0.3, depth = 2;
           const geometry = new THREE.BoxGeometry(width, height, depth);
           const material = new THREE.MeshPhongMaterial({ color: selectedColor });
           const platform = new THREE.Mesh(geometry, material);
           platform.position.copy(intersectPoint);
-          platform.position.y += height/2; // lift so it sits on the ground
+          platform.position.y += height/2;
           platform.castShadow = true;
           platform.receiveShadow = true;
+          // Mark newly built objects as editable
           platform.userData.editable = true;
           gameInstance.scene.add(platform);
           gameInstance.platforms.push(platform);
         }
         break;
-      case "spawn":
-        {
+      case "spawn": {
           const spawnGeometry = new THREE.SphereGeometry(0.2, 12, 12);
           const spawnMaterial = new THREE.MeshBasicMaterial({ color: selectedColor });
           const spawnMarker = new THREE.Mesh(spawnGeometry, spawnMaterial);
@@ -134,9 +112,7 @@ export function editorClickHandler(event, gameInstance) {
           gameInstance.scene.add(spawnMarker);
         }
         break;
-      case "key":
-        {
-          // Remove old key if exists, then add new key at clicked position.
+      case "key": {
           if(gameInstance.key) {
             gameInstance.scene.remove(gameInstance.key);
           }
@@ -164,8 +140,7 @@ export function editorClickHandler(event, gameInstance) {
           gameInstance.scene.add(keyGroup);
         }
         break;
-      case "door":
-        {
+      case "door": {
           const doorGroup = new THREE.Group();
           const frameGeometry = new THREE.BoxGeometry(2, 3, 0.3);
           const frameMaterial = new THREE.MeshPhongMaterial({ color: selectedColor });
@@ -201,33 +176,28 @@ export function editorClickHandler(event, gameInstance) {
   }
 }
 
-function setSelectedObject(object) {
-  // Remove previous highlight if any
+function setSelectedObject(object, gameInstance) {
+  // Clear previous selection and detach transform control if active
   clearSelectedObject();
   selectedObject = object;
-  // To visually indicate selection, add an outline or change emissive color
+  // Visual indication by adjusting emissive if available
   if (selectedObject.material && selectedObject.material.emissive) {
     selectedObject.material.emissive.setHex(0x333333);
   }
-  // Update UI with object's current position
-  updateObjectEditorUI();
-  // Show the object editor panel if in select mode
-  document.getElementById('objectEditor').style.display = "block";
+  // Attach TransformControls so the object can be dragged along its axes
+  if(transformControl) {
+    transformControl.attach(selectedObject);
+    transformControl.visible = true;
+  }
 }
 
 function clearSelectedObject() {
   if (selectedObject && selectedObject.material && selectedObject.material.emissive) {
-    // Remove highlight
     selectedObject.material.emissive.setHex(0x000000);
   }
   selectedObject = null;
-  document.getElementById('objectEditor').style.display = "none";
-}
-
-function updateObjectEditorUI() {
-  if (selectedObject) {
-    document.getElementById('posX').value = selectedObject.position.x.toFixed(2);
-    document.getElementById('posY').value = selectedObject.position.y.toFixed(2);
-    document.getElementById('posZ').value = selectedObject.position.z.toFixed(2);
+  if (transformControl) {
+    transformControl.detach();
+    transformControl.visible = false;
   }
 }

@@ -3,70 +3,54 @@ import { initEditorControls, editorClickHandler } from './editor.js';
 
 class Game {
   constructor() {
-    // Initialize renderer first
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setClearColor(0x87ceeb);
     this.renderer.shadowMap.enabled = true;
-    // Ensure renderer's canvas has a lower z-index so UI elements are clickable.
     this.renderer.domElement.style.position = 'relative';
     this.renderer.domElement.style.zIndex = '0';
     document.body.appendChild(this.renderer.domElement);
 
-    // Scene, camera, and fog
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(0x87ceeb, 10, 30);
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-    // Constants
     this.NORMAL_HEIGHT = 1.75;
     this.SHORT_HEIGHT = this.NORMAL_HEIGHT / 2;
-    this.TUNNEL_HEIGHT = 1.2; // Only small character can fit
+    this.TUNNEL_HEIGHT = 1.2;
 
-    // Active player tracking
     this.activePlayer = null;
     this.cameraOffset = new THREE.Vector3(0, 5, 10);
     this.cameraLerpFactor = 0.1;
 
-    // Add key tracking
     this.key = null;
     this.isHoldingKey = false;
-    this.keyOffset = new THREE.Vector3(0.7, 0, 0); // Offset from player
+    this.keyOffset = new THREE.Vector3(0.7, 0, 0);
 
-    // Add door tracking
     this.door = null;
     this.isDoorOpen = false;
 
-    // Level Editor Mode flag
     this.isEditorMode = false;
-    // Default Editor sub mode is now set to 'select'
     this.editorSubMode = 'select';
 
-    // Setup sequence
     this.setupWorld();
     this.setupEnvironment();
     this.setupKey();
-    this.setupDoor();  // Add door setup
+    this.setupDoor();
     this.setupPlayers();
     this.setupLighting();
     this.setupCamera();
     this.setupControls();
 
-    // Initialize editor controls (but they only become active when editor mode is on)
     initEditorControls(this);
 
-    // Set initial active player
     this.setActivePlayer(this.greenPlayer);
 
-    // Start animation loop
     this.animate();
 
-    // Event listeners
     window.addEventListener('resize', () => this.onWindowResize(), false);
 
-    // Listen for clicks for level editor
     window.addEventListener('mousedown', (e) => {
-      // Avoid processing clicks if the target is part of the UI
       const targetTag = e.target.tagName.toLowerCase();
       if (['input', 'button', 'select', 'label'].includes(targetTag)) return;
       if (this.isEditorMode) {
@@ -77,37 +61,29 @@ class Game {
 
   toggleEditorMode() {
     this.isEditorMode = !this.isEditorMode;
-    // When toggling editor, pause gameplay controls if needed.
   }
 
   setupWorld() {
-    // Ground
     const groundGeometry = new THREE.BoxGeometry(20, 1, 20);
     const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
     this.ground = new THREE.Mesh(groundGeometry, groundMaterial);
     this.ground.position.y = -0.5;
     this.ground.receiveShadow = true;
-    // Mark ground as non-editable
     this.ground.userData.editable = false;
     this.scene.add(this.ground);
 
-    // Platforms array
     this.platforms = [];
 
-    // Main platforms (mark as editable)
     this.addPlatform(2, 1, 2, 0x404040, -3, 0.5, -3, false);
     this.addPlatform(2, 1, 2, 0x404040, 3, 1, 3, false);
     this.addPlatform(2, 1, 2, 0x404040, -3, 1.5, 3, false);
 
-    // Additional platforming elements
     this.addPlatform(2, 0.3, 2, 0x505050, 5, 2, -3, false);
     this.addPlatform(2, 0.3, 2, 0x505050, 7, 2.5, -3, false);
     this.addPlatform(3, 0.3, 2, 0x505050, -5, 1.8, -4, false);
 
-    // Create tunnel/cave structure
     this.createTunnel();
 
-    // Add platform leading to door
     this.addPlatform(3, 0.3, 2, 0x505050, 3, 4, -5, false);
     this.addPlatform(2, 0.3, 2, 0x505050, 0, 4, -5, false);
   }
@@ -120,16 +96,13 @@ class Game {
     platform.castShadow = true;
     platform.receiveShadow = true;
     platform.userData.editable = isEditable;
-    // For platforms created during game setup, mark as not editable unless via level editor
     this.scene.add(platform);
     this.platforms.push(platform);
   }
 
   createTunnel() {
-    // Tunnel walls
     const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x505050 });
 
-    // Left wall
     const leftWall = new THREE.BoxGeometry(0.5, this.TUNNEL_HEIGHT, 4);
     const leftWallMesh = new THREE.Mesh(leftWall, wallMaterial);
     leftWallMesh.position.set(-6, this.TUNNEL_HEIGHT / 2, 0);
@@ -139,7 +112,6 @@ class Game {
     this.scene.add(leftWallMesh);
     this.platforms.push(leftWallMesh);
 
-    // Right wall
     const rightWall = new THREE.BoxGeometry(0.5, this.TUNNEL_HEIGHT, 4);
     const rightWallMesh = new THREE.Mesh(rightWall, wallMaterial);
     rightWallMesh.position.set(-4, this.TUNNEL_HEIGHT / 2, 0);
@@ -149,7 +121,6 @@ class Game {
     this.scene.add(rightWallMesh);
     this.platforms.push(rightWallMesh);
 
-    // Top of tunnel
     const tunnelTop = new THREE.BoxGeometry(2.5, 0.5, 4);
     const tunnelTopMesh = new THREE.Mesh(tunnelTop, wallMaterial);
     tunnelTopMesh.position.set(-5, this.TUNNEL_HEIGHT, 0);
@@ -159,7 +130,6 @@ class Game {
     this.scene.add(tunnelTopMesh);
     this.platforms.push(tunnelTopMesh);
 
-    // Back wall of tunnel
     const backWall = new THREE.BoxGeometry(2, this.TUNNEL_HEIGHT, 0.5);
     const backWallMesh = new THREE.Mesh(backWall, wallMaterial);
     backWallMesh.position.set(-5, this.TUNNEL_HEIGHT / 2, 2);
@@ -171,7 +141,6 @@ class Game {
   }
 
   setupEnvironment() {
-    // Add some trees for detail
     const treePositions = [
       { x: -7, z: -7 },
       { x: 7, z: -6 },
@@ -183,12 +152,10 @@ class Game {
       this.createTree(pos.x, pos.z);
     });
 
-    // Add a sun for extra atmosphere
     const sunGeometry = new THREE.SphereGeometry(0.5, 16, 16);
     const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
     const sun = new THREE.Mesh(sunGeometry, sunMaterial);
     sun.position.set(-8, 8, -8);
-    // Sun is non-editable
     sun.userData.editable = false;
     this.scene.add(sun);
   }
@@ -196,7 +163,6 @@ class Game {
   createTree(x, z) {
     const tree = new THREE.Group();
 
-    // Trunk
     const trunkGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1, 8);
     const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
     const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
@@ -205,7 +171,6 @@ class Game {
     trunk.receiveShadow = true;
     tree.add(trunk);
 
-    // Foliage
     const leavesGeometry = new THREE.ConeGeometry(0.5, 1, 8);
     const leavesMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 });
     const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
@@ -214,29 +179,24 @@ class Game {
     tree.add(leaves);
 
     tree.position.set(x, 0, z);
-    // Trees are non-editable
     tree.userData.editable = false;
     this.scene.add(tree);
   }
 
   setupKey() {
-    // Create a key mesh
     const keyGroup = new THREE.Group();
 
-    // Key head (circular part)
     const headGeometry = new THREE.TorusGeometry(0.2, 0.05, 16, 32);
     const keyMaterial = new THREE.MeshPhongMaterial({ color: 0xffd700 });
     const head = new THREE.Mesh(headGeometry, keyMaterial);
     head.rotation.x = Math.PI / 2;
     keyGroup.add(head);
 
-    // Key shaft
     const shaftGeometry = new THREE.BoxGeometry(0.4, 0.1, 0.1);
     const shaft = new THREE.Mesh(shaftGeometry, keyMaterial);
     shaft.position.x = -0.3;
     keyGroup.add(shaft);
 
-    // Key teeth
     const toothGeometry = new THREE.BoxGeometry(0.08, 0.15, 0.1);
     const positions = [-0.4, -0.5];
     positions.forEach(x => {
@@ -245,7 +205,6 @@ class Game {
       keyGroup.add(tooth);
     });
 
-    // Position key inside tunnel
     keyGroup.position.set(-5, 0.5, 0);
     keyGroup.castShadow = true;
     keyGroup.userData.editable = true;
@@ -256,14 +215,12 @@ class Game {
   setupDoor() {
     const doorGroup = new THREE.Group();
 
-    // Door frame
     const frameGeometry = new THREE.BoxGeometry(2, 3, 0.3);
     const frameMaterial = new THREE.MeshPhongMaterial({ color: 0xdaa520 });
     const frame = new THREE.Mesh(frameGeometry, frameMaterial);
     frame.position.y = 1.5;
     doorGroup.add(frame);
 
-    // Door panel
     const doorGeometry = new THREE.BoxGeometry(1.6, 2.6, 0.2);
     const doorMaterial = new THREE.MeshPhongMaterial({ color: 0xffd700 });
     const doorPanel = new THREE.Mesh(doorGeometry, doorMaterial);
@@ -271,7 +228,6 @@ class Game {
     doorPanel.position.z = 0.1;
     doorGroup.add(doorPanel);
 
-    // Add handle
     const handleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
     const handleMaterial = new THREE.MeshPhongMaterial({ color: 0xb8860b });
     const handle = new THREE.Mesh(handleGeometry, handleMaterial);
@@ -279,7 +235,6 @@ class Game {
     handle.position.set(0.5, 1.3, 0.2);
     doorGroup.add(handle);
 
-    // Position the entire door
     doorGroup.position.set(1.5, 4, -6);
     doorGroup.castShadow = true;
     doorGroup.receiveShadow = true;
@@ -290,17 +245,14 @@ class Game {
   }
 
   setupPlayers() {
-    // Green (tall) player - a rectangular box collider
     const greenGeometry = new THREE.BoxGeometry(0.6, this.NORMAL_HEIGHT, 0.6);
     const greenMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
     this.greenPlayer = new THREE.Mesh(greenGeometry, greenMaterial);
     this.greenPlayer.position.set(-2, this.NORMAL_HEIGHT / 2, 0);
     this.greenPlayer.castShadow = true;
-    // Players are non-editable in level editor
     this.greenPlayer.userData.editable = false;
     this.scene.add(this.greenPlayer);
 
-    // Orange (short) player - a rectangular box collider
     const orangeGeometry = new THREE.BoxGeometry(0.3, this.SHORT_HEIGHT, 0.3);
     const orangeMaterial = new THREE.MeshPhongMaterial({ color: 0xff8c00 });
     this.orangePlayer = new THREE.Mesh(orangeGeometry, orangeMaterial);
@@ -309,7 +261,6 @@ class Game {
     this.orangePlayer.userData.editable = false;
     this.scene.add(this.orangePlayer);
 
-    // Physics properties
     this.greenVelocity = new THREE.Vector3();
     this.orangeVelocity = new THREE.Vector3();
   }
@@ -319,12 +270,10 @@ class Game {
   }
 
   setupLighting() {
-    // Ambient light for overall brightness
     const ambientLight = new THREE.AmbientLight(0x606060);
     ambientLight.userData.editable = false;
     this.scene.add(ambientLight);
 
-    // Main directional light with shadows
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.position.set(10, 10, 10);
     directionalLight.castShadow = true;
@@ -333,7 +282,6 @@ class Game {
     directionalLight.userData.editable = false;
     this.scene.add(directionalLight);
 
-    // Secondary directional light from another angle
     const secondaryLight = new THREE.DirectionalLight(0xffffff, 0.5);
     secondaryLight.position.set(-10, 5, -10);
     secondaryLight.userData.editable = false;
@@ -361,15 +309,13 @@ class Game {
       const distance = this.activePlayer.position.distanceTo(this.door.position);
       if (distance < 2) {
         this.isDoorOpen = true;
-        // Animate door opening
         this.door.rotation.y = Math.PI / 2;
-        // Could add victory condition or next level logic here
       }
     }
   }
 
   onKeyDown(event) {
-    if(this.isEditorMode) return; // disable gameplay controls in editor mode
+    if(this.isEditorMode) return;
 
     switch (event.key.toLowerCase()) {
       case 'w': this.keys.w = true; break;
@@ -390,13 +336,13 @@ class Game {
       case 'e':
         this.keys.e = true;
         this.tryPickupKey();
-        this.tryOpenDoor();  // Try to open door when E is pressed
+        this.tryOpenDoor();
         break;
     }
   }
 
   onKeyUp(event) {
-    if(this.isEditorMode) return; // disable gameplay controls in editor mode
+    if(this.isEditorMode) return;
     switch (event.key.toLowerCase()) {
       case 'w': this.keys.w = false; break;
       case 'a': this.keys.a = false; break;
@@ -427,15 +373,10 @@ class Game {
     const box2 = new THREE.Box3().setFromObject(this.orangePlayer);
 
     if (box1.intersectsBox(box2)) {
-      // Find overlap along each axis
       const overlapX = Math.min(box1.max.x, box2.max.x) - Math.max(box1.min.x, box2.min.x);
       const overlapY = Math.min(box1.max.y, box2.max.y) - Math.max(box1.min.y, box2.min.y);
       const overlapZ = Math.min(box1.max.z, box2.max.z) - Math.max(box1.min.z, box2.min.z);
-      
-      // Determine the smallest overlap axis
       const minOverlap = Math.min(overlapX, overlapY, overlapZ);
-      
-      // Create a separation vector
       const separation = new THREE.Vector3();
       if (minOverlap === overlapX) {
         separation.x = overlapX * (this.greenPlayer.position.x < this.orangePlayer.position.x ? -1 : 1);
@@ -444,7 +385,6 @@ class Game {
       } else if (minOverlap === overlapZ) {
         separation.z = overlapZ * (this.greenPlayer.position.z < this.orangePlayer.position.z ? -1 : 1);
       }
-      // Apply half of the separation to each player for even pushback
       this.greenPlayer.position.add(separation.clone().multiplyScalar(0.5));
       this.orangePlayer.position.sub(separation.clone().multiplyScalar(0.5));
       
@@ -495,7 +435,6 @@ class Game {
     const oldPosition = player.position.clone();
     const oldY = player.position.y;
 
-    // Update horizontal movement
     player.position.x += velocity.x;
     player.position.z += velocity.z;
     for (const platform of this.platforms) {
@@ -513,11 +452,9 @@ class Game {
       }
     }
 
-    // Apply gravity
     velocity.y -= gravity;
     player.position.y += velocity.y;
 
-    // Check vertical collisions with platforms
     for (const platform of this.platforms) {
       if (this.checkCollision(player, platform)) {
         const platformBox = new THREE.Box3().setFromObject(platform);
@@ -537,7 +474,6 @@ class Game {
       }
     }
 
-    // Ensure player does not go below ground
     if (player.position.y < halfHeight) {
       player.position.y = halfHeight;
       velocity.y = 0;
@@ -547,7 +483,6 @@ class Game {
       }
     }
 
-    // Horizontal bounds checking
     const bounds = 9;
     player.position.x = Math.max(-bounds, Math.min(bounds, player.position.x));
     player.position.z = Math.max(-bounds, Math.min(bounds, player.position.z));
