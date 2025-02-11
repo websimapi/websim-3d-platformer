@@ -45,12 +45,14 @@ export function initEditorControls(gameInstance) {
     // For now, no conflict handling as editor mode disables gameplay.
   });
   gameInstance.scene.add(transformControl);
+  // Expose transformControl globally so that other parts of the UI can interact with it
+  window.transformControl = transformControl;
 }
 
 export function editorClickHandler(event, gameInstance) {
   event.preventDefault();
-  // Only process clicks in build mode. In select mode, allow selection.
-  const editorSubMode = gameInstance.editorSubMode || 'build';
+  // Only process clicks in the editor modes.
+  const editorSubMode = gameInstance.editorSubMode || 'select';
   const mouse = new THREE.Vector2();
   mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
   mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
@@ -62,10 +64,13 @@ export function editorClickHandler(event, gameInstance) {
     // Try to select any clickable object in the scene.
     const intersects = raycaster.intersectObjects(gameInstance.scene.children, true);
     for (let intersect of intersects) {
-      // Allow selection of any object that has a material (i.e. visible objects) 
-      // and is marked editable or not (all objects are selectable now)
-      if (intersect.object.material) {
-        setSelectedObject(intersect.object, gameInstance);
+      // Check through the object's parent chain if necessary to find a selectable object
+      let candidate = intersect.object;
+      while (candidate && !candidate.userData.hasOwnProperty('editable')) {
+        candidate = candidate.parent;
+      }
+      if (candidate && candidate.material) {
+        setSelectedObject(candidate, gameInstance);
         return;
       }
     }

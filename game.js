@@ -235,7 +235,7 @@ class Game {
     handle.position.set(0.5, 1.3, 0.2);
     doorGroup.add(handle);
 
-    doorGroup.position.set(1.5, 4, -6);
+    doorGroup.position.set(1.5, 8, -6);
     doorGroup.castShadow = true;
     doorGroup.receiveShadow = true;
     doorGroup.userData.editable = true;
