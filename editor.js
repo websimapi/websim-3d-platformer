@@ -36,17 +36,39 @@ export function initEditorControls(gameInstance) {
     clearSelectedObject();
   });
 
-  // Initialize TransformControls for object manipulation and add to scene,
-  // but keep detached until an object is selected.
+  // Initialize TransformControls for object manipulation
   transformControl = new TransformControls(gameInstance.camera, gameInstance.renderer.domElement);
-  transformControl.visible = false; // hide by default
   transformControl.addEventListener('dragging-changed', function (event) {
-    // Disable orbit controls if you have them in future or gameplay controls
-    // For now, no conflict handling as editor mode disables gameplay.
+    // When dragging, disable orbit controls if they exist
+    gameInstance.renderer.domElement.style.cursor = event.value ? 'grabbing' : 'pointer';
   });
+  
+  // Make transform control more responsive
+  transformControl.setTranslationSnap(0.5);
+  transformControl.setRotationSnap(THREE.MathUtils.degToRad(15));
+  transformControl.setScaleSnap(0.25);
+  
+  // Enable all transform modes
+  transformControl.showX = true;
+  transformControl.showY = true;
+  transformControl.showZ = true;
+  
+  // Add to scene but hide initially
+  transformControl.visible = false;
   gameInstance.scene.add(transformControl);
-  // Expose transformControl globally so that other parts of the UI can interact with it
+  
+  // Store reference globally for other parts of the UI
   window.transformControl = transformControl;
+  
+  // Add event listener for transform changes
+  transformControl.addEventListener('objectChange', function() {
+    if (selectedObject) {
+      // Update object position when transformed
+      selectedObject.position.copy(transformControl.object.position);
+      selectedObject.rotation.copy(transformControl.object.rotation);
+      selectedObject.scale.copy(transformControl.object.scale);
+    }
+  });
 }
 
 export function editorClickHandler(event, gameInstance) {
@@ -182,17 +204,26 @@ export function editorClickHandler(event, gameInstance) {
 }
 
 function setSelectedObject(object, gameInstance) {
-  // Clear previous selection and detach transform control if active
+  // Clear previous selection
   clearSelectedObject();
+  
   selectedObject = object;
-  // Visual indication by adjusting emissive if available
+  
+  // Visual indication of selection
   if (selectedObject.material && selectedObject.material.emissive) {
     selectedObject.material.emissive.setHex(0x333333);
   }
-  // Attach TransformControls so the object can be dragged along its axes
-  if(transformControl) {
+  
+  // Attach transform controls
+  if (transformControl) {
     transformControl.attach(selectedObject);
     transformControl.visible = true;
+    
+    // Set initial transform mode to translate
+    transformControl.setMode('translate');
+    
+    // Make sure the transform control is in front of other objects
+    transformControl.position.copy(selectedObject.position);
   }
 }
 

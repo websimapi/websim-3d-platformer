@@ -1,44 +1,52 @@
 <html>
 <head>
-  <title>3D Platformer</title>
+  <title>3D Platformer with Level Editor</title>
   <style>
     body { 
       margin: 0; 
       overflow: hidden;
       background: #000;
+      font-family: Arial, sans-serif;
     }
     canvas { 
       width: 100%; 
       height: 100%; 
       display: block; 
+      position: relative;
+      z-index: 0;
     }
     #instructions {
       position: absolute;
       top: 10px;
       left: 10px;
-      z-index: 10;
+      z-index: 20;
       color: white;
       background: rgba(0,0,0,0.5);
       padding: 10px;
       border-radius: 5px;
-      font-family: Arial, sans-serif;
     }
-    #switchButton {
-      margin-top: 10px;
-      padding: 5px 10px;
-      font-size: 14px;
-      cursor: pointer;
-    }
-    #hint {
+    #controls {
       position: absolute;
-      bottom: 10px;
-      left: 10px;
+      top: 10px;
+      right: 10px;
+      z-index: 20;
       color: white;
       background: rgba(0,0,0,0.5);
       padding: 10px;
       border-radius: 5px;
-      font-family: Arial, sans-serif;
+      max-width: 250px;
     }
+    #controls button, #controls select, #controls input {
+      margin-top: 5px;
+      padding: 5px;
+      font-size: 14px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    /* Hide the old manual transform inputs */
+    #objectEditor { display: none; }
+    /* Hide the previous axis tool as we'll use drag controls */
+    #axisTool { display: none; }
   </style>
 </head>
 <body>
@@ -49,11 +57,36 @@
     TAB or the button below to switch between players<br>
     E to pick up/hold key (release to drop) or open door with key<br>
     <br>
-    Green Player is tall, Orange Player is short
-    <br>
+    Green Player is tall, Orange Player is short<br>
     <button id="switchButton">Switch Player</button>
+    <br><br>
+    <button id="toggleEditor">Toggle Editor Mode</button>
   </div>
-  <div id="hint">
+  <div id="controls" style="display:none;">
+    <h3>Level Editor</h3>
+    <div id="modeSwitch">
+      <label for="editorModeSelect">Editor Mode:</label>
+      <select id="editorModeSelect">
+        <option value="select" selected>Selection Mode</option>
+        <option value="build">Build Mode</option>
+      </select>
+    </div>
+    <select id="objectType">
+      <option value="platform">Platform</option>
+      <option value="spawn">Spawn Point</option>
+      <option value="key">Key</option>
+      <option value="door">Door</option>
+    </select>
+    <input type="color" id="colorPicker" value="#505050" title="Choose Object Color">
+    <button id="clearSelection">Clear Selection</button>
+    <p style="font-size:12px;">Click on the scene to add the selected object.<br>
+    (Platforms are added on ground level.)</p>
+    <!-- ObjectEditor panel removed in favor of drag controls -->
+    <div id="axisTool">
+      <!-- The previous axis tool is removed because TransformControls from Three.js will be used -->
+    </div>
+  </div>
+  <div id="hint" style="position: absolute; bottom:10px; left:10px; z-index:20; color:white; background: rgba(0,0,0,0.5); padding:10px; border-radius:5px;">
     Hint: The key is hidden in a tunnel - only the small orange player can fit inside!<br>
     Work together: The orange player needs to climb on the green player to reach higher places!
   </div>
@@ -61,18 +94,75 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "https://unpkg.com/three@0.153.0/build/three.module.js"
+        "three": "https://unpkg.com/three@0.153.0/build/three.module.js",
+        "three/examples/jsm/controls/TransformControls.js": "https://unpkg.com/three@0.153.0/examples/jsm/controls/TransformControls.js"
       }
     }
   </script>
   <script type="module" src="game.js"></script>
+  <script type="module" src="editor.js"></script>
   <script>
-    // Wire up the switch button to call switchPlayer on our game instance
     window.addEventListener('DOMContentLoaded', () => {
       const switchButton = document.getElementById('switchButton');
       switchButton.addEventListener('click', () => {
         if (window.game && window.game.switchPlayer) {
           window.game.switchPlayer();
+        }
+      });
+      
+      // Toggle Level Editor Mode
+      const toggleEditor = document.getElementById('toggleEditor');
+      toggleEditor.addEventListener('click', () => {
+        if(window.game) {
+          window.game.toggleEditorMode();
+          // Show/hide controls panel accordingly
+          const controlsPanel = document.getElementById('controls');
+          if(window.game.isEditorMode) {
+            controlsPanel.style.display = "block";
+            toggleEditor.textContent = "Exit Editor Mode";
+            // Ensure the UI elements accept pointer events when in editor mode
+            controlsPanel.style.pointerEvents = "auto";
+            document.body.style.cursor = 'pointer';
+          } else {
+            controlsPanel.style.display = "none";
+            toggleEditor.textContent = "Toggle Editor Mode";
+            document.body.style.cursor = 'default';
+            // Clear any active transform controls
+            if(window.transformControl) {
+              window.transformControl.detach();
+              window.transformControl.visible = false;
+            }
+          }
+        }
+      });
+  
+      // Listen to editor mode switch
+      const editorModeSelect = document.getElementById('editorModeSelect');
+      editorModeSelect.addEventListener('change', (e) => {
+        if(window.game) {
+          window.game.editorSubMode = e.target.value; // 'build' or 'select'
+          // In build mode, detach any transform controls
+          if(e.target.value === "build" && window.transformControl) {
+            window.transformControl.detach();
+            window.transformControl.visible = false;
+          }
+        }
+      });
+
+      // Add keyboard controls for transform modes
+      window.addEventListener('keydown', (e) => {
+        if(window.game && window.game.isEditorMode) {
+          switch(e.key.toLowerCase()) {
+            case 'g':
+              if(window.transformControl) window.transformControl.setMode('translate');
+              break;
+            case 'r':
+              if(window.transformControl) window.transformControl.setMode('rotate');
+              break;
+            case 's':
+              if(window.transformControl) window.transformControl.setMode('scale');
+              break;
+          }
         }
       });
     });
