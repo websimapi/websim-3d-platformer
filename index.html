@@ -48,7 +48,6 @@
     SPACE to jump<br>
     TAB or the button below to switch between players<br>
     E to pick up/hold key (release to drop) or open door with key<br>
-    H to have the green player pick up the other player (if positioned correctly) and hold them on the head (release to drop)<br>
     <br>
     Green Player is tall, Orange Player is short
     <br>
@@ -68,6 +67,7 @@
   </script>
   <script type="module" src="game.js"></script>
   <script>
+    // Wire up the switch button to call switchPlayer on our game instance
     window.addEventListener('DOMContentLoaded', () => {
       const switchButton = document.getElementById('switchButton');
       switchButton.addEventListener('click', () => {

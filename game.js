@@ -2,14 +2,14 @@ import * as THREE from 'three';
 
 class Game {
   constructor() {
-    // Initialize renderer
+    // Initialize renderer first
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setClearColor(0x87ceeb);
     this.renderer.shadowMap.enabled = true;
     document.body.appendChild(this.renderer.domElement);
 
-    // Scene, camera, fog
+    // Scene, camera, and fog
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(0x87ceeb, 10, 30);
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -18,35 +18,34 @@ class Game {
     this.NORMAL_HEIGHT = 1.75;
     this.SHORT_HEIGHT = this.NORMAL_HEIGHT / 2;
     this.TUNNEL_HEIGHT = 1.2; // Only small character can fit
-
-    // Active player and hold tracking for carrying player on top of head
+    
+    // Active player tracking
     this.activePlayer = null;
-    this.heldPlayer = null; // When green holds the other player on head
     this.cameraOffset = new THREE.Vector3(0, 5, 10);
     this.cameraLerpFactor = 0.1;
-
-    // Key (for door) tracking
+    
+    // Add key tracking
     this.key = null;
     this.isHoldingKey = false;
-    this.keyOffset = new THREE.Vector3(0.7, 0, 0);
-
-    // Door tracking
+    this.keyOffset = new THREE.Vector3(0.7, 0, 0); // Offset from player
+    
+    // Add door tracking
     this.door = null;
     this.isDoorOpen = false;
-
+    
     // Setup sequence
     this.setupWorld();
     this.setupEnvironment();
     this.setupKey();
-    this.setupDoor();
+    this.setupDoor();  // Add door setup
     this.setupPlayers();
     this.setupLighting();
     this.setupCamera();
     this.setupControls();
-
-    // Set initial active player to green
+    
+    // Set initial active player
     this.setActivePlayer(this.greenPlayer);
-
+    
     // Start animation loop
     this.animate();
 
@@ -65,20 +64,20 @@ class Game {
 
     // Platforms array
     this.platforms = [];
-
+    
     // Main platforms
     this.addPlatform(2, 1, 2, 0x404040, -3, 0.5, -3);
     this.addPlatform(2, 1, 2, 0x404040, 3, 1, 3);
     this.addPlatform(2, 1, 2, 0x404040, -3, 1.5, 3);
-
+    
     // Additional platforming elements
     this.addPlatform(2, 0.3, 2, 0x505050, 5, 2, -3);
     this.addPlatform(2, 0.3, 2, 0x505050, 7, 2.5, -3);
     this.addPlatform(3, 0.3, 2, 0x505050, -5, 1.8, -4);
-
+    
     // Create tunnel/cave structure
     this.createTunnel();
-
+    
     // Add platform leading to door
     this.addPlatform(3, 0.3, 2, 0x505050, 3, 4, -5);
     this.addPlatform(2, 0.3, 2, 0x505050, 0, 4, -5);
@@ -98,7 +97,7 @@ class Game {
   createTunnel() {
     // Tunnel walls
     const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x505050 });
-
+    
     // Left wall
     const leftWall = new THREE.BoxGeometry(0.5, this.TUNNEL_HEIGHT, 4);
     const leftWallMesh = new THREE.Mesh(leftWall, wallMaterial);
@@ -184,20 +183,20 @@ class Game {
   setupKey() {
     // Create a key mesh
     const keyGroup = new THREE.Group();
-
+    
     // Key head (circular part)
     const headGeometry = new THREE.TorusGeometry(0.2, 0.05, 16, 32);
     const keyMaterial = new THREE.MeshPhongMaterial({ color: 0xffd700 });
     const head = new THREE.Mesh(headGeometry, keyMaterial);
     head.rotation.x = Math.PI / 2;
     keyGroup.add(head);
-
+    
     // Key shaft
     const shaftGeometry = new THREE.BoxGeometry(0.4, 0.1, 0.1);
     const shaft = new THREE.Mesh(shaftGeometry, keyMaterial);
     shaft.position.x = -0.3;
     keyGroup.add(shaft);
-
+    
     // Key teeth
     const toothGeometry = new THREE.BoxGeometry(0.08, 0.15, 0.1);
     const positions = [-0.4, -0.5];
@@ -216,14 +215,14 @@ class Game {
 
   setupDoor() {
     const doorGroup = new THREE.Group();
-
+    
     // Door frame
     const frameGeometry = new THREE.BoxGeometry(2, 3, 0.3);
     const frameMaterial = new THREE.MeshPhongMaterial({ color: 0xdaa520 });
     const frame = new THREE.Mesh(frameGeometry, frameMaterial);
     frame.position.y = 1.5;
     doorGroup.add(frame);
-
+    
     // Door panel
     const doorGeometry = new THREE.BoxGeometry(1.6, 2.6, 0.2);
     const doorMaterial = new THREE.MeshPhongMaterial({ color: 0xffd700 });
@@ -231,7 +230,7 @@ class Game {
     doorPanel.position.y = 1.3;
     doorPanel.position.z = 0.1;
     doorGroup.add(doorPanel);
-
+    
     // Add handle
     const handleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
     const handleMaterial = new THREE.MeshPhongMaterial({ color: 0xb8860b });
@@ -239,12 +238,12 @@ class Game {
     handle.rotation.x = Math.PI / 2;
     handle.position.set(0.5, 1.3, 0.2);
     doorGroup.add(handle);
-
+    
     // Position the entire door
     doorGroup.position.set(1.5, 4, -6);
     doorGroup.castShadow = true;
     doorGroup.receiveShadow = true;
-
+    
     this.door = doorGroup;
     this.scene.add(doorGroup);
   }
@@ -303,7 +302,7 @@ class Game {
     this.keys = {
       w: false, a: false, s: false, d: false, space: false,
       up: false, down: false, left: false, right: false, enter: false,
-      tab: false, e: false, h: false
+      tab: false, e: false
     };
 
     window.addEventListener('keydown', (e) => this.onKeyDown(e));
@@ -317,39 +316,13 @@ class Game {
         this.isDoorOpen = true;
         // Animate door opening
         this.door.rotation.y = Math.PI / 2;
-        // Add victory condition or next level logic here if needed
+        // Could add victory condition or next level logic here
       }
-    }
-  }
-
-  tryHoldPlayer() {
-    // Only allow the green player to hold the other player (orange) when in contact
-    if (this.activePlayer === this.greenPlayer && !this.heldPlayer) {
-      // Check if orange is colliding with green from above (rough check)
-      const greenBox = new THREE.Box3().setFromObject(this.greenPlayer);
-      const orangeBox = new THREE.Box3().setFromObject(this.orangePlayer);
-      if (greenBox.intersectsBox(orangeBox)) {
-        const greenTop = greenBox.max.y;
-        const orangeBottom = orangeBox.min.y;
-        if (orangeBottom - greenTop < 0.3 && orangeBottom - greenTop > -0.5) {
-          this.heldPlayer = this.orangePlayer;
-          // Disable orange's own movement by zeroing its velocity
-          this.orangeVelocity.set(0, 0, 0);
-        }
-      }
-    }
-  }
-
-  dropHeldPlayer() {
-    if (this.heldPlayer) {
-      // When dropping, let the dropped player fall naturally a bit forward
-      this.heldPlayer = null;
     }
   }
 
   onKeyDown(event) {
-    const key = event.key.toLowerCase();
-    switch (key) {
+    switch (event.key.toLowerCase()) {
       case 'w': this.keys.w = true; break;
       case 'a': this.keys.a = true; break;
       case 's': this.keys.s = true; break;
@@ -368,19 +341,13 @@ class Game {
       case 'e':
         this.keys.e = true;
         this.tryPickupKey();
-        this.tryOpenDoor();
-        break;
-      case 'h':
-        this.keys.h = true;
-        // When H is pressed, try to hold the other player if green is active
-        this.tryHoldPlayer();
+        this.tryOpenDoor();  // Try to open door when E is pressed
         break;
     }
   }
 
   onKeyUp(event) {
-    const key = event.key.toLowerCase();
-    switch (key) {
+    switch (event.key.toLowerCase()) {
       case 'w': this.keys.w = false; break;
       case 'a': this.keys.a = false; break;
       case 's': this.keys.s = false; break;
@@ -398,19 +365,11 @@ class Game {
           this.dropKey();
         }
         break;
-      case 'h':
-        this.keys.h = false;
-        // Drop held player when H is released
-        this.dropHeldPlayer();
-        break;
     }
   }
 
   switchPlayer() {
-    // Allow switching only if not currently holding a player
-    if (!this.heldPlayer) {
-      this.activePlayer = (this.activePlayer === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
-    }
+    this.activePlayer = (this.activePlayer === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
   }
 
   checkCollision(obj1, obj2) {
@@ -440,23 +399,6 @@ class Game {
     }
   }
 
-  updateHeldPlayer() {
-    // If green is holding the other player, update the held player's position
-    if (this.heldPlayer && this.activePlayer === this.greenPlayer) {
-      const greenBox = new THREE.Box3().setFromObject(this.greenPlayer);
-      const greenTopY = greenBox.max.y;
-      // Align held player above green's head; center horizontally
-      this.heldPlayer.position.lerp(
-        new THREE.Vector3(
-          this.greenPlayer.position.x,
-          greenTopY + (this.heldPlayer.geometry.parameters.height / 2) + 0.05,
-          this.greenPlayer.position.z
-        ),
-        0.3
-      );
-    }
-  }
-
   updateCamera() {
     if (!this.activePlayer) return;
     const targetPosition = this.activePlayer.position.clone();
@@ -476,7 +418,7 @@ class Game {
     const oldPosition = player.position.clone();
     const oldY = player.position.y;
 
-    // Update horizontal movement separately
+    // Update horizontal movement
     player.position.x += velocity.x;
     player.position.z += velocity.z;
     // Check horizontal collisions with platforms – allow if player is standing on top of a platform
@@ -538,6 +480,33 @@ class Game {
     player.position.z = Math.max(-bounds, Math.min(bounds, player.position.z));
   }
 
+  updatePlayersCollision() {
+    // Determine the two players
+    const active = this.activePlayer;
+    const other = (active === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
+    const activeHalf = active.geometry.parameters.height / 2;
+    const otherHalf = other.geometry.parameters.height / 2;
+    const otherTop = other.position.y + otherHalf;
+    const activeBottom = active.position.y - activeHalf;
+    // Check horizontal proximity using bounding boxes width approximations
+    const dx = Math.abs(active.position.x - other.position.x);
+    const dz = Math.abs(active.position.z - other.position.z);
+    // Use approximate width of the players (green width: 0.6, orange width: 0.3)
+    const allowedX = ((active === this.greenPlayer ? 0.6 : 0.3) + (other === this.greenPlayer ? 0.6 : 0.3)) / 2;
+    const allowedZ = allowedX; // approximate same threshold for z
+    if (dx < allowedX && dz < allowedZ) {
+      // If active player's bottom is contacting other's top (allow a small buffer)
+      if (activeBottom < otherTop && activeBottom > otherTop - 0.2) {
+        active.position.y = otherTop + activeHalf;
+        if (active === this.greenPlayer) {
+          this.greenVelocity.y = 0;
+        } else {
+          this.orangeVelocity.y = 0;
+        }
+      }
+    }
+  }
+
   onWindowResize() {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
@@ -548,7 +517,7 @@ class Game {
     requestAnimationFrame(() => this.animate());
 
     const isGreenActive = this.activePlayer === this.greenPlayer;
-
+    
     // Update green player
     this.updatePlayer(
       this.greenPlayer,
@@ -559,23 +528,20 @@ class Game {
       0.01
     );
 
-    // Update orange player only if not held
-    if (this.heldPlayer !== this.orangePlayer) {
-      this.updatePlayer(
-        this.orangePlayer,
-        this.orangeVelocity,
-        !isGreenActive ? { up: this.keys.w, down: this.keys.s, left: this.keys.a, right: this.keys.d } : {},
-        !isGreenActive && this.keys.space,
-        0.1,
-        0.01
-      );
-    }
+    // Update orange player
+    this.updatePlayer(
+      this.orangePlayer,
+      this.orangeVelocity,
+      !isGreenActive ? { up: this.keys.w, down: this.keys.s, left: this.keys.a, right: this.keys.d } : {},
+      !isGreenActive && this.keys.space,
+      0.1,
+      0.01
+    );
 
-    // Update key position if held
+    // Allow players to interact without harsh bouncing when standing on each other
+    this.updatePlayersCollision();
+
     this.updateKey();
-    // Update held player's position if green is holding them
-    this.updateHeldPlayer();
-    // Update camera to follow the active player
     this.updateCamera();
     this.renderer.render(this.scene, this.camera);
   }
