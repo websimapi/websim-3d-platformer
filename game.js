@@ -418,7 +418,7 @@ class Game {
     const oldPosition = player.position.clone();
     const oldY = player.position.y;
 
-    // Update horizontal movement
+    // Update horizontal movement separately
     player.position.x += velocity.x;
     player.position.z += velocity.z;
     // Check horizontal collisions with platforms – allow if player is standing on top of a platform
@@ -474,35 +474,31 @@ class Game {
       }
     }
 
-    // Bounds checking horizontally
+    // Horizontal bounds checking
     const bounds = 9;
     player.position.x = Math.max(-bounds, Math.min(bounds, player.position.x));
     player.position.z = Math.max(-bounds, Math.min(bounds, player.position.z));
   }
 
-  updatePlayersCollision() {
-    // Determine the two players
-    const active = this.activePlayer;
-    const other = (active === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
-    const activeHalf = active.geometry.parameters.height / 2;
-    const otherHalf = other.geometry.parameters.height / 2;
-    const otherTop = other.position.y + otherHalf;
-    const activeBottom = active.position.y - activeHalf;
-    // Check horizontal proximity using bounding boxes width approximations
-    const dx = Math.abs(active.position.x - other.position.x);
-    const dz = Math.abs(active.position.z - other.position.z);
-    // Use approximate width of the players (green width: 0.6, orange width: 0.3)
-    const allowedX = ((active === this.greenPlayer ? 0.6 : 0.3) + (other === this.greenPlayer ? 0.6 : 0.3)) / 2;
-    const allowedZ = allowedX; // approximate same threshold for z
-    if (dx < allowedX && dz < allowedZ) {
-      // If active player's bottom is contacting other's top (allow a small buffer)
-      if (activeBottom < otherTop && activeBottom > otherTop - 0.2) {
-        active.position.y = otherTop + activeHalf;
-        if (active === this.greenPlayer) {
-          this.greenVelocity.y = 0;
-        } else {
-          this.orangeVelocity.y = 0;
-        }
+  resolvePlayerCollision() {
+    const threshold = 0.3;
+    const greenHalf = this.greenPlayer.geometry.parameters.height / 2;
+    const orangeHalf = this.orangePlayer.geometry.parameters.height / 2;
+    const greenTop = this.greenPlayer.position.y + greenHalf;
+    const greenBottom = this.greenPlayer.position.y - greenHalf;
+    const orangeTop = this.orangePlayer.position.y + orangeHalf;
+    const orangeBottom = this.orangePlayer.position.y - orangeHalf;
+
+    if (this.checkCollision(this.greenPlayer, this.orangePlayer)) {
+      // If green is slightly below orange, adjust green to stand on orange
+      if ((orangeTop - greenBottom) > 0 && (orangeTop - greenBottom) < threshold) {
+        this.greenPlayer.position.y = orangeTop + greenHalf;
+        this.greenVelocity.y = 0;
+      }
+      // If orange is slightly below green, adjust orange to stand on green
+      if ((greenTop - orangeBottom) > 0 && (greenTop - orangeBottom) < threshold) {
+        this.orangePlayer.position.y = greenTop + orangeHalf;
+        this.orangeVelocity.y = 0;
       }
     }
   }
@@ -538,9 +534,9 @@ class Game {
       0.01
     );
 
-    // Allow players to interact without harsh bouncing when standing on each other
-    this.updatePlayersCollision();
-
+    // Resolve collisions between players for fluid stacking
+    this.resolvePlayerCollision();
+    
     this.updateKey();
     this.updateCamera();
     this.renderer.render(this.scene, this.camera);
