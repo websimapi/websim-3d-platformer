@@ -36,6 +36,8 @@ class Game {
 
     // Level Editor Mode flag
     this.isEditorMode = false;
+    // Editor sub mode : 'build' or 'select'
+    this.editorSubMode = 'build';
 
     // Setup sequence
     this.setupWorld();

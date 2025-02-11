@@ -53,14 +53,23 @@
       padding: 3px;
       box-sizing: border-box;
     }
-    #hint {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      color: white;
-      background: rgba(0,0,0,0.5);
-      padding: 10px;
-      border-radius: 5px;
+    #axisTool {
+      margin-top: 10px;
+      border-top: 1px solid #fff;
+      padding-top: 10px;
+      display: none;
+    }
+    #axisTool button {
+      width: 48%;
+      margin: 1%;
+      padding: 5px;
+      font-size: 12px;
+      box-sizing: border-box;
+    }
+    #modeSwitch {
+      margin-top: 10px;
+      border-top: 1px solid #fff;
+      padding-top: 10px;
     }
   </style>
 </head>
@@ -79,6 +88,13 @@
   </div>
   <div id="controls" style="display:none;">
     <h3>Level Editor</h3>
+    <div id="modeSwitch">
+      <label for="editorModeSelect">Editor Mode:</label>
+      <select id="editorModeSelect">
+        <option value="build">Build Mode</option>
+        <option value="select">Selection Mode</option>
+      </select>
+    </div>
     <select id="objectType">
       <option value="platform">Platform</option>
       <option value="spawn">Spawn Point</option>
@@ -95,6 +111,22 @@
       <label>Position Y: <input type="number" id="posY" step="0.1"></label>
       <label>Position Z: <input type="number" id="posZ" step="0.1"></label>
       <button id="applyTransform">Apply Transform</button>
+    </div>
+    <div id="axisTool">
+      <h4>Axis Tool</h4>
+      <label>Move Increment: <input type="number" id="moveIncrement" value="0.1" step="0.05"></label>
+      <div>
+        <button data-axis="x" data-dir="1">X+</button>
+        <button data-axis="x" data-dir="-1">X-</button>
+      </div>
+      <div>
+        <button data-axis="y" data-dir="1">Y+</button>
+        <button data-axis="y" data-dir="-1">Y-</button>
+      </div>
+      <div>
+        <button data-axis="z" data-dir="1">Z+</button>
+        <button data-axis="z" data-dir="-1">Z-</button>
+      </div>
     </div>
   </div>
   <div id="hint">
@@ -133,6 +165,23 @@
           } else {
             controlsPanel.style.display = "none";
             toggleEditor.textContent = "Toggle Editor Mode";
+          }
+        }
+      });
+  
+      // Listen to editor mode switch
+      const editorModeSelect = document.getElementById('editorModeSelect');
+      editorModeSelect.addEventListener('change', (e) => {
+        if(window.game) {
+          window.game.editorSubMode = e.target.value; // 'build' or 'select'
+          // Show or hide axis tool and object editor based on mode
+          const axisTool = document.getElementById('axisTool');
+          if(e.target.value === "select") {
+            axisTool.style.display = "block";
+          } else {
+            axisTool.style.display = "none";
+            // Also clear any selected object in selection mode
+            if(window.clearSelectedObject) window.clearSelectedObject();
           }
         }
       });
