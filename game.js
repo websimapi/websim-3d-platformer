@@ -53,6 +53,8 @@ class Game {
     window.addEventListener('mousedown', (e) => {
       const targetTag = e.target.tagName.toLowerCase();
       if (['input', 'button', 'select', 'label'].includes(targetTag)) return;
+      // If we're currently dragging the transform controls, do not process this click.
+      if (this.isEditorMode && window.transformControl && window.transformControl.dragging) return;
       if (this.isEditorMode) {
         editorClickHandler(e, this);
       }
@@ -497,7 +499,7 @@ class Game {
   animate() {
     requestAnimationFrame(() => this.animate());
 
-    if(!this.isEditorMode) {
+    if (!this.isEditorMode) {
       const isGreenActive = this.activePlayer === this.greenPlayer;
       this.updatePlayer(
         this.greenPlayer,
@@ -519,6 +521,9 @@ class Game {
       this.updateKey();
     }
     this.updateCamera();
+    if (window.transformControl) {
+      window.transformControl.update();
+    }
     this.renderer.render(this.scene, this.camera);
   }
 
