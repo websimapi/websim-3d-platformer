@@ -29,10 +29,15 @@ class Game {
     this.isHoldingKey = false;
     this.keyOffset = new THREE.Vector3(0.7, 0, 0); // Offset from player
     
+    // Add door tracking
+    this.door = null;
+    this.isDoorOpen = false;
+    
     // Setup sequence
     this.setupWorld();
     this.setupEnvironment();
     this.setupKey();
+    this.setupDoor();  // Add door setup
     this.setupPlayers();
     this.setupLighting();
     this.setupCamera();
@@ -72,6 +77,10 @@ class Game {
     
     // Create tunnel/cave structure
     this.createTunnel();
+    
+    // Add platform leading to door
+    this.addPlatform(3, 0.3, 2, 0x505050, 3, 4, -5);
+    this.addPlatform(2, 0.3, 2, 0x505050, 0, 4, -5);
   }
 
   addPlatform(width, height, depth, color, x, y, z) {
@@ -204,6 +213,41 @@ class Game {
     this.scene.add(this.key);
   }
 
+  setupDoor() {
+    const doorGroup = new THREE.Group();
+    
+    // Door frame
+    const frameGeometry = new THREE.BoxGeometry(2, 3, 0.3);
+    const frameMaterial = new THREE.MeshPhongMaterial({ color: 0xDAA520 });
+    const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+    frame.position.y = 1.5;
+    doorGroup.add(frame);
+    
+    // Door panel
+    const doorGeometry = new THREE.BoxGeometry(1.6, 2.6, 0.2);
+    const doorMaterial = new THREE.MeshPhongMaterial({ color: 0xFFD700 });
+    const doorPanel = new THREE.Mesh(doorGeometry, doorMaterial);
+    doorPanel.position.y = 1.3;
+    doorPanel.position.z = 0.1;
+    doorGroup.add(doorPanel);
+    
+    // Add handle
+    const handleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
+    const handleMaterial = new THREE.MeshPhongMaterial({ color: 0xB8860B });
+    const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+    handle.rotation.x = Math.PI / 2;
+    handle.position.set(0.5, 1.3, 0.2);
+    doorGroup.add(handle);
+    
+    // Position the entire door
+    doorGroup.position.set(1.5, 4, -6);
+    doorGroup.castShadow = true;
+    doorGroup.receiveShadow = true;
+    
+    this.door = doorGroup;
+    this.scene.add(doorGroup);
+  }
+
   setupPlayers() {
     // Green (tall) player
     const greenGeometry = new THREE.BoxGeometry(0.6, this.NORMAL_HEIGHT, 0.6);
@@ -265,6 +309,18 @@ class Game {
     window.addEventListener('keyup', (e) => this.onKeyUp(e));
   }
 
+  tryOpenDoor() {
+    if (this.isHoldingKey && this.activePlayer) {
+      const distance = this.activePlayer.position.distanceTo(this.door.position);
+      if (distance < 2) {
+        this.isDoorOpen = true;
+        // Animate door opening
+        this.door.rotation.y = Math.PI / 2;
+        // Could add victory condition or next level logic here
+      }
+    }
+  }
+
   onKeyDown(event) {
     switch(event.key.toLowerCase()) {
       case 'w': this.keys.w = true; break;
@@ -285,6 +341,7 @@ class Game {
       case 'e':
         this.keys.e = true;
         this.tryPickupKey();
+        this.tryOpenDoor();  // Try to open door when E is pressed
         break;
     }
   }
