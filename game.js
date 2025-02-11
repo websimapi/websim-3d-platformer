@@ -421,15 +421,20 @@ class Game {
     // Update horizontal movement separately
     player.position.x += velocity.x;
     player.position.z += velocity.z;
-    // Check horizontal collisions with platforms
+    // Check horizontal collisions with platforms – allow if player is standing on top of a platform
     for (const platform of this.platforms) {
       if (this.checkCollision(player, platform)) {
-        // Revert to old horizontal position if colliding
-        player.position.x = oldPosition.x;
-        player.position.z = oldPosition.z;
-        velocity.x = 0;
-        velocity.z = 0;
-        break;
+        const platformBox = new THREE.Box3().setFromObject(platform);
+        const platformTop = platformBox.max.y;
+        const playerBottom = player.position.y - halfHeight;
+        // If player's bottom is nearly on top of the platform, allow horizontal movement
+        if (Math.abs(playerBottom - platformTop) > 0.2) {
+          player.position.x = oldPosition.x;
+          player.position.z = oldPosition.z;
+          velocity.x = 0;
+          velocity.z = 0;
+          break;
+        }
       }
     }
 
