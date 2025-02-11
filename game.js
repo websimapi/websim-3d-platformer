@@ -521,9 +521,6 @@ class Game {
       this.updateKey();
     }
     this.updateCamera();
-    if (window.transformControl) {
-      window.transformControl.update();
-    }
     this.renderer.render(this.scene, this.camera);
   }
 
