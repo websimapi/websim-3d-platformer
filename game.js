@@ -23,9 +23,15 @@ class Game {
     this.cameraOffset = new THREE.Vector3(0, 5, 10);
     this.cameraLerpFactor = 0.1;
     
+    // Add key tracking
+    this.key = null;
+    this.isHoldingKey = false;
+    this.keyOffset = new THREE.Vector3(0.7, 0, 0); // Offset from player
+    
     // Setup sequence
     this.setupWorld();
     this.setupEnvironment();
+    this.setupKey();
     this.setupPlayers();
     this.setupLighting();
     this.setupCamera();
@@ -113,6 +119,38 @@ class Game {
     this.scene.add(tree);
   }
 
+  setupKey() {
+    // Create a key mesh
+    const keyGroup = new THREE.Group();
+    
+    // Key head (circular part)
+    const headGeometry = new THREE.TorusGeometry(0.2, 0.05, 16, 32);
+    const keyMaterial = new THREE.MeshPhongMaterial({ color: 0xFFD700 });
+    const head = new THREE.Mesh(headGeometry, keyMaterial);
+    head.rotation.x = Math.PI / 2;
+    keyGroup.add(head);
+    
+    // Key shaft
+    const shaftGeometry = new THREE.BoxGeometry(0.4, 0.1, 0.1);
+    const shaft = new THREE.Mesh(shaftGeometry, keyMaterial);
+    shaft.position.x = -0.3;
+    keyGroup.add(shaft);
+    
+    // Key teeth
+    const toothGeometry = new THREE.BoxGeometry(0.08, 0.15, 0.1);
+    const positions = [-0.4, -0.5];
+    positions.forEach(x => {
+      const tooth = new THREE.Mesh(toothGeometry, keyMaterial);
+      tooth.position.set(x, -0.12, 0);
+      keyGroup.add(tooth);
+    });
+
+    keyGroup.position.set(0, 0.5, 0);
+    keyGroup.castShadow = true;
+    this.key = keyGroup;
+    this.scene.add(this.key);
+  }
+
   setupPlayers() {
     // Green (tall) player
     const greenGeometry = new THREE.BoxGeometry(0.6, this.NORMAL_HEIGHT, 0.6);
@@ -167,7 +205,7 @@ class Game {
     this.keys = {
       w: false, a: false, s: false, d: false, space: false,
       up: false, down: false, left: false, right: false, enter: false,
-      tab: false
+      tab: false, e: false
     };
 
     window.addEventListener('keydown', (e) => this.onKeyDown(e));
@@ -191,6 +229,10 @@ class Game {
         this.keys.tab = true;
         this.switchPlayer();
         break;
+      case 'e':
+        this.keys.e = true;
+        this.tryPickupKey();
+        break;
     }
   }
 
@@ -207,6 +249,12 @@ class Game {
       case 'arrowright': this.keys.right = false; break;
       case 'enter': this.keys.enter = false; break;
       case 'tab': this.keys.tab = false; break;
+      case 'e':
+        this.keys.e = false;
+        if (this.isHoldingKey) {
+          this.dropKey();
+        }
+        break;
     }
   }
 
@@ -218,6 +266,27 @@ class Game {
     const box1 = new THREE.Box3().setFromObject(obj1);
     const box2 = new THREE.Box3().setFromObject(obj2);
     return box1.intersectsBox(box2);
+  }
+
+  tryPickupKey() {
+    if (!this.isHoldingKey && this.activePlayer) {
+      const distance = this.activePlayer.position.distanceTo(this.key.position);
+      if (distance < 1.5) {
+        this.isHoldingKey = true;
+      }
+    }
+  }
+
+  dropKey() {
+    this.isHoldingKey = false;
+  }
+
+  updateKey() {
+    if (this.isHoldingKey && this.activePlayer) {
+      const targetPosition = this.activePlayer.position.clone()
+        .add(this.keyOffset.clone().applyQuaternion(this.activePlayer.quaternion));
+      this.key.position.lerp(targetPosition, 0.3);
+    }
   }
 
   updateCamera() {
@@ -241,7 +310,7 @@ class Game {
     const halfHeight = player.geometry.parameters.height / 2;
     const oldBottom = oldPosition.y - halfHeight;
 
-    // Apply gravity
+    // Apply reduced gravity
     velocity.y -= gravity;
     
     // Update position
@@ -249,12 +318,12 @@ class Game {
     player.position.y += velocity.y;
     player.position.z += velocity.z;
 
-    // Collision with the other player
+    // Collision with the other player - modified for smoother standing
     const otherPlayer = (player === this.greenPlayer) ? this.orangePlayer : this.greenPlayer;
     if (this.checkCollision(player, otherPlayer)) {
       const otherBox = new THREE.Box3().setFromObject(otherPlayer);
       const otherTop = otherBox.max.y;
-      if (oldBottom >= otherTop) { // Coming from above
+      if (oldBottom >= otherTop - 0.1) { // Coming from above with small tolerance
         player.position.y = otherTop + halfHeight;
         velocity.y = 0;
         if (jumpKey) velocity.y = 0.2;
@@ -322,6 +391,7 @@ class Game {
       0.01
     );
 
+    this.updateKey();
     this.updateCamera();
     this.renderer.render(this.scene, this.camera);
   }
